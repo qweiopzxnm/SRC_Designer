@@ -7,7 +7,6 @@ echo.
 
 if not exist "SRC.plecs" (
     echo ERROR: SRC.plecs not found!
-    echo Please copy your PLECS model to this folder.
     pause
     exit /b 1
 )
@@ -19,7 +18,17 @@ if not exist "plecs_input.json" (
     exit /b 1
 )
 
-echo Starting MATLAB simulation...
+echo Starting MATLAB...
+echo.
+
+matlab -batch "test_plecs"
+echo.
+echo Test completed. Check results above.
+echo.
+pause
+
+echo.
+echo Starting simulation...
 echo.
 
 matlab -batch "run_plecs_simulation"
@@ -27,7 +36,8 @@ matlab -batch "run_plecs_simulation"
 echo.
 echo ========================================
 if exist "plecs_output.json" (
-    echo SUCCESS! Results saved to plecs_output.json
+    echo SUCCESS! Results: plecs_output.json
+    type plecs_output.json
 ) else (
     echo FAILED! Check error above.
 )
