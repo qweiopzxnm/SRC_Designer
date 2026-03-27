@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo PLECS Simulation
+echo PLECS Auto Simulation
 echo ========================================
 echo.
 
@@ -18,13 +18,10 @@ if not exist "plecs_input.json" (
     exit /b 1
 )
 
-echo Starting MATLAB simulation...
+echo Starting MATLAB...
 echo.
 
-matlab -batch "test_plecs_exe"
-echo.
-
-matlab -batch "run_plecs_simulation"
+matlab -batch "run_plecs_auto"
 
 echo.
 echo ========================================
