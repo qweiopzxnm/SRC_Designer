@@ -43,30 +43,45 @@ scp -r root@8.222.140.165:/home/admin/.openclaw/workspace/src/tools/src-designer
 
 ### 第三步：启动仿真服务器
 
-打开 **命令提示符** 或 **PowerShell**，进入下载的文件夹：
+打开 **PowerShell** 或 **命令提示符**，进入下载的文件夹：
 
 ```cmd
 cd %USERPROFILE%\Desktop\src-designer
 ```
 
-运行启动命令：
+**选择以下任一方式启动：**
 
-**方式 1：使用启动脚本（推荐）**
-```cmd
-start-plecs-server.bat
+#### 方式 1：PowerShell 脚本（推荐）
+右键点击 `start-plecs-server.ps1` → 选择 **"Run with PowerShell"**
+
+或在 PowerShell 中运行：
+```powershell
+.\start-plecs-server.ps1
 ```
 
-**方式 2：直接运行 Node.js**
+#### 方式 2：简化批处理
+双击 `run.bat` 文件
+
+#### 方式 3：直接运行 Node.js
 ```cmd
 node plecs-server.js
 ```
 
-看到以下输出表示成功：
+**成功输出示例：**
 ```
-========================================
-🔌 PLECS 仿真服务器已启动
-📡 监听端口：http://localhost:3000
-========================================
+==========================================
+PLECS Simulation Server Startup
+==========================================
+
+[OK] Node.js installed: v20.x.x
+[OK] MATLAB found: C:\Program Files\MATLAB\R2024a\bin\matlab.exe
+[OK] Model file found: SRC.plecs
+
+Working directory: C:\Users\...\src-designer
+Server port: http://localhost:3000
+
+Press Ctrl+C to stop
+==========================================
 ```
 
 **⚠️ 保持此窗口打开，不要关闭！**

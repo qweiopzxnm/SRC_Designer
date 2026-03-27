@@ -1,56 +1,54 @@
 @echo off
-REM PLECS 仿真服务器启动脚本 (Windows)
-REM 
-REM 使用方法：
-REM 双击此文件或运行：start-plecs-server.bat
+REM PLECS Simulation Server Startup Script (Windows)
+REM Usage: Double-click this file or run: start-plecs-server.bat
 
 echo ==========================================
-echo 🔌 PLECS 仿真服务器启动脚本
+echo PLECS Simulation Server Startup
 echo ==========================================
 echo.
 
-REM 检查 Node.js
+REM Check Node.js
 where node >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    echo ❌ 错误：未找到 Node.js
-    echo 请先安装 Node.js: https://nodejs.org/
+    echo Error: Node.js not found
+    echo Please install Node.js from: https://nodejs.org/
     pause
     exit /b 1
 )
 
-echo ✅ Node.js 已安装
+echo Node.js installed
 node --version
 echo.
 
-REM 检查 MATLAB
+REM Check MATLAB
 where matlab >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    echo ⚠️  警告：未找到 MATLAB 命令
-    echo 请确保 MATLAB 已安装并添加到 PATH
+    echo Warning: MATLAB command not found
+    echo Please ensure MATLAB is installed and added to PATH
     echo.
 ) else (
-    echo ✅ MATLAB 已安装
+    echo MATLAB installed
 )
 
-REM 检查模型文件
+REM Check model file
 if not exist "SRC.plecs" (
-    echo ❌ 错误：未找到 SRC.plecs 模型文件
-    echo 请将 PLECS 模型文件复制到此目录
+    echo Error: SRC.plecs model file not found
+    echo Please copy your PLECS model file to this directory
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ 模型文件：SRC.plecs
+echo Model file: SRC.plecs
 echo.
-echo 📂 工作目录：%CD%
-echo 📡 服务端口：http://localhost:3000
+echo Working directory: %CD%
+echo Server port: http://localhost:3000
 echo.
-echo 按 Ctrl+C 停止服务
+echo Press Ctrl+C to stop the server
 echo ==========================================
 echo.
 
-REM 启动服务器
+REM Start server
 node plecs-server.js
 
 pause
