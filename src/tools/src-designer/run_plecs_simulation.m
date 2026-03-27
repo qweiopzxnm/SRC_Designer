@@ -9,7 +9,7 @@ function run_plecs_simulation()
     try
         % 1. 读取输入参数
         fprintf('Reading parameters...\n');
-        params = jsonread('plecs_input.json');
+        params = read_json('plecs_input.json');
         fprintf('Vin = %.1f V, Po = %.1f W\n', params.Vin, params.Po);
         
         % 2. 打开 PLECS 模型
@@ -90,7 +90,7 @@ function run_plecs_simulation()
         result.success = true;
         result.timestamp = char(datetime('now'));
         
-        jsonwrite('plecs_output.json', result);
+        write_json('plecs_output.json', result);
         fprintf('Results saved to plecs_output.json\n');
         
         % 7. 关闭模型
@@ -108,7 +108,7 @@ function run_plecs_simulation()
         % 保存错误信息
         error_result.success = false;
         error_result.error = err.message;
-        jsonwrite('plecs_output.json', error_result);
+        write_json('plecs_output.json', error_result);
         
         % 尝试关闭模型
         try
@@ -118,4 +118,70 @@ function run_plecs_simulation()
         
         rethrow(err);
     end
+end
+
+% 简易 JSON 读取函数
+function data = read_json(filename)
+    fid = fopen(filename, 'r');
+    if fid == -1
+        error('Cannot open file: %s', filename);
+    end
+    content = fileread(filename);
+    fclose(fid);
+    
+    % 解析 JSON（简化版，只支持数字和字符串）
+    data = struct();
+    
+    % 提取 Lr
+    data.Lr = extract_number(content, 'Lr');
+    data.Crp = extract_number(content, 'Crp');
+    data.Crs = extract_number(content, 'Crs');
+    data.Lm = extract_number(content, 'Lm');
+    data.Np = extract_number(content, 'Np');
+    data.Ns = extract_number(content, 'Ns');
+    data.Vin = extract_number(content, 'Vin');
+    data.Vref = extract_number(content, 'Vref');
+    data.Rload = extract_number(content, 'Rload');
+    data.Po = extract_number(content, 'Po');
+end
+
+% 简易 JSON 写入函数
+function write_json(filename, data)
+    fid = fopen(filename, 'w');
+    if fid == -1
+        error('Cannot write file: %s', filename);
+    end
+    
+    fprintf(fid, '{\n');
+    fprintf(fid, '  "success": %s,\n', lower(num2str(data.success)));
+    if isfield(data, 'Lrms')
+        fprintf(fid, '  "Lrms": %.6f,\n', data.Lrms);
+    end
+    if isfield(data, 'Ipeak')
+        fprintf(fid, '  "Ipeak": %.6f,\n', data.Ipeak);
+    end
+    if isfield(data, 'simulation_time_sec')
+        fprintf(fid, '  "simulation_time_sec": %.2f,\n', data.simulation_time_sec);
+    end
+    if isfield(data, 'error')
+        fprintf(fid, '  "error": "%s",\n', data.error);
+    end
+    if isfield(data, 'timestamp')
+        fprintf(fid, '  "timestamp": "%s"\n', data.timestamp);
+    else
+        fprintf(fid, '  "timestamp": "%s"\n', char(datetime('now')));
+    end
+    fprintf(fid, '}\n');
+    
+    fclose(fid);
+end
+
+% 从 JSON 字符串提取数字
+function value = extract_number(json_str, key)
+    pattern = sprintf('"%s":\\s*([\\d.eE+-]+)', key);
+    tokens = regexp(json_str, pattern, 'tokens');
+    if isempty(tokens)
+        error('Key not found: %s', key);
+    end
+    value = str2double(tokens{1}{1});
 end
