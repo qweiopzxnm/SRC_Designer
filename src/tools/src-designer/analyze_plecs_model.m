@@ -28,46 +28,37 @@ end
 content = fread(fid, 2000, 'char=>char');
 fclose(fid);
 
-% 显示前 200 字符
-fprintf('First 200 chars:\n');
-fprintf('%s\n\n', content(1:min(200, length(content))));
+% 显示前 500 字符
+fprintf('First 500 chars:\n');
+fprintf('----------------------------------------\n');
+fprintf('%s', content(1:min(500, length(content))));
+fprintf('\n----------------------------------------\n\n');
 
-% 检查是否包含 XML 标记
-is_xml = (length(content) > 5) && (strcmp(content(1:5), '<?xml'));
-
-if is_xml
-    fprintf('Format: XML (text-based)\n');
-    fprintf('Can be modified directly!\n\n');
-else
-    fprintf('Format: Binary or compressed\n\n');
-end
-
-% 查找参数
+% 搜索参数的简单方法
 fprintf('Searching for parameters...\n');
 
 params_to_find = {'Lr', 'Crp', 'Crs', 'Lm', 'Np', 'Ns', 'Vin', 'Vref'};
 
 for i = 1:length(params_to_find)
     param = params_to_find{i};
+    search_str = [param ' '];
     
-    % 搜索参数
-    idx = strfind(content, ['"' param '"']);
+    % 使用正则表达式搜索
+    pattern = sprintf('%s\\s+\"?([\\d.eE+-]+)\"?', param);
+    tokens = regexp(content, pattern, 'tokens');
     
-    if ~isempty(idx)
-        % 找到参数，提取后面的值
-        start_idx = idx(1) + length(param) + 3;
-        end_idx = start_idx + 20;
-        snippet = content(start_idx:min(end_idx, length(content)));
-        
-        % 提取数字
-        num_match = regexp(snippet, '([\\d.eE+-]+)', 'tokens');
-        if ~isempty(num_match)
-            fprintf('  %s = %s\n', param, num_match{1}{1});
-        else
-            fprintf('  %s = FOUND (value format unclear)\n', param);
-        end
+    if ~isempty(tokens)
+        fprintf('  %s = %s\n', param, tokens{1}{1});
     else
-        fprintf('  %s = NOT FOUND\n', param);
+        % 尝试其他格式
+        pattern2 = sprintf('%s\\s*=\\s*([\\d.eE+-]+)', param);
+        tokens2 = regexp(content, pattern2, 'tokens');
+        
+        if ~isempty(tokens2)
+            fprintf('  %s = %s\n', param, tokens2{1}{1});
+        else
+            fprintf('  %s = NOT FOUND\n', param);
+        end
     end
 end
 
