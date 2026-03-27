@@ -1,158 +1,39 @@
-# LLC 谐振变换器设计工具
+# LLC Design Tool with PLECS Integration
 
-基于 MATLAB LLC 设计算法的 Web 版自动设计工具。
-
-## 功能特点
-
-### 1. 自动优化设计
-- 根据用户输入的设计规格，自动计算最优谐振参数
-- **电容值基于单颗容量自动计算并联数量**
-- **电感值按指定分辨率自动取整**
-- **支持自定义励磁电感 Lm**
-- 无需手动选定谐振参数
-
-### 2. 拓扑结构
-- **原副边均有谐振电容** (Cr_p, Cr_s)
-- 对称谐振设计
-- LLC 谐振变换器拓扑
-
-### 3. 计算内容
-
-#### Dsnpara (设计参数)
-直接从用户输入计算：
-- 电压增益 M = Vo_nom / Vin_max
-- 变压器匝比 Tratio = Np / Ns
-- 总增益 Gain = M × Tratio
-- 等效交流电阻 Rac
-- 反射电阻 Racp
-- 特征阻抗 Zr
-- 谐振电感 Lr
-- 谐振电容 Cr
-- 最小开关频率 fs_min
-- 谐振腔电压 Vintank
-- 谐振电流峰值 Irpk
-
-#### Actpara (实际选定参数)
-基于用户指定规格优化：
-- **单颗电容容量** (用户输入)
-- **原边电容并联数量** = ceil(目标容量 / 单颗容量)
-- **副边电容并联数量** = 原边数量 (对称设计)
-- **电感分辨率** (用户输入)
-- **实际电感值** = round(目标值 / 分辨率) × 分辨率
-- 等效电容 Ceq
-- 实际 Q 值
-- 实际谐振频率 fr
-
-### 4. 输出结果
-- 效率估算
-- Markdown 格式设计报告
-- **PLECS 仿真参数导出**
-
-## 使用方法
-
-### 输入参数
-| 参数 | 说明 | 典型值 |
-|------|------|--------|
-| Vin_max | 最大输入电压 (V) | 810 |
-| Vo_nom | 额定输出电压 (V) | 680 |
-| Po | 输出功率 (W) | 11000 |
-| fr | 目标谐振频率 (kHz) | 130 |
-| Np | 原边匝数 | 24 |
-| Ns | 副边匝数 | 23 |
-| Q | 品质因数 | 0.62 |
-| fs_ratio | fs_min/fr 比值 | 1.2 |
-| **C_unit** | **单颗电容容量 (nF)** | **47** |
-| **L_step** | **电感分辨率 (μH)** | **1** |
-| **Lm** | **励磁电感 (μH)** | **400** |
-
-### 运行方式
-
-#### 本地打开
-直接用浏览器打开 `index.html` 文件即可。
-
-#### 本地服务器
-```bash
-cd /home/admin/.openclaw/workspace/src/tools/src-designer
-python3 -m http.server 8081
-# 访问 http://localhost:8081
-```
-
-## 算法来源
-
-基于用户提供的 MATLAB LLC 设计代码：
-- Dsnpara 结构体：用户输入直接赋值
-- Actpara 结构体：选定标准谐振参数后的数值
-- 拓扑：原副边均有谐振电容
-
-## 电容并联计算
-
-```
-目标电容 Cr_target = 设计计算值 (nF)
-单颗容量 C_unit = 用户输入 (nF)
-并联数量 N = ceil(Cr_target / C_unit)
-实际电容 Cr_actual = N × C_unit
-```
-
-**示例：**
-- 目标电容：53.22 nF
-- 单颗容量：47 nF
-- 并联数量：ceil(53.22 / 47) = 2 颗
-- 实际电容：2 × 47 = 94 nF
-
-## 电感分辨率取整
-
-```
-目标电感 Lr_target = 设计计算值 (μH)
-分辨率 L_step = 用户输入 (μH)
-实际电感 Lr_actual = round(Lr_target / L_step) × L_step
-```
-
-**示例：**
-- 目标电感：28.16 μH
-- 分辨率：1 μH
-- 实际电感：round(28.16 / 1) × 1 = 28 μH
-
-## 设计说明
-
-1. **Q 值选择**: 典型范围 0.3-1.0，本设计默认 0.62
-2. **频率比**: fs_min/fr 默认 1.2，确保 ZVS 工作
-3. **电感比**: k = Lm/Lr，典型范围 3-6，可在实际选定参数中查看
-4. **电容并联**: 向上取整确保电容足够，可调整单颗容量优化
-5. **电感取整**: 按指定分辨率取整，便于定制采购
-
-## 文件结构
+## Files
 
 ```
 src-designer/
-├── index.html              # 主页面
-├── app.js                  # 应用逻辑
-├── src-calculator.js       # LLC 核心计算算法
-├── styles.css              # 样式文件
-├── README.md               # 说明文档
-└── PLECS_INTEGRATION.md    # PLECS 仿真集成指南
+├── index.html              # Main UI
+├── app.js                  # Application logic
+├── src-calculator.js       # LLC calculator
+├── styles.css              # Styles
+├── plecs-server.js         # PLECS backend server
+├── run_plecs_simulation.m  # MATLAB script
+└── SRC.plecs               # Your PLECS model (required)
 ```
 
-## 导出功能
+## Quick Start
 
-### 导出设计报告
-点击"📥 导出报告"按钮可生成 Markdown 格式的设计报告，包含：
-- 设计规格
-- 变压器参数
-- 设计参数 (Dsnpara)
-- 实际选定参数 (Actpara) - 含并联数量、分辨率和 k 值
-- 效率估算
-- 设计说明
+### 1. Download
+```powershell
+scp -r root@8.222.140.165:/home/admin/.openclaw/workspace/src/tools/src-designer %USERPROFILE%\Desktop\src-designer
+```
 
-### 导出 PLECS 参数
-点击"🔌 导出 PLECS 参数"按钮可生成 JSON 格式的仿真参数文件，包含：
-- 基本规格 (Vin, Vout, Po, fr)
-- 变压器参数 (Np, Ns, Tratio)
-- 谐振参数 (Lr, Cr, Lm, k)
-- 品质因数 (Q, Rac, Racp)
-- 电容配置 (Cr_p, Cr_s, Np_cap, Ns_cap)
+### 2. Copy PLECS Model
+Copy your `SRC.plecs` file to the downloaded folder.
 
-详细集成方法请参阅 `PLECS_INTEGRATION.md`。
+### 3. Start Server
+```cmd
+cd %USERPROFILE%\Desktop\src-designer
+node plecs-server.js
+```
+
+### 4. Run Simulation
+1. Open `index.html` in browser
+2. Click "Calculate"
+3. Click "Run PLECS Simulation"
 
 ---
 
-*小艺 ⚡ 电力电子设计助手*
+*Version 1.2.1*
