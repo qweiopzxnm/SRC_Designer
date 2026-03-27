@@ -1,5 +1,6 @@
 % run_plecs_simulation.m
 % PLECS 仿真自动运行脚本
+% 编码：UTF-8
 
 function run_plecs_simulation()
     fprintf('========================================\n');
@@ -15,13 +16,22 @@ function run_plecs_simulation()
         % 2. 打开 PLECS 模型
         fprintf('Opening PLECS model...\n');
         model_name = 'SRC';
+        model_file = 'SRC.plecs';
         
-        if ~exist([model_name '.plecs'], 'file')
-            error('Model file not found: %s.plecs', model_name);
+        if ~exist(model_file, 'file')
+            error('Model file not found: %s', model_file);
         end
         
-        load_system([model_name '.plecs']);
-        fprintf('Model opened: %s\n', model_name);
+        % 使用 PLECS 专用函数打开模型
+        if exist('plecs_open_model', 'file')
+            % PLECS Standalone 或 PLECS Toolbox
+            plecs_open_model(model_file);
+        else
+            % 尝试直接加载
+            load_system(model_name);
+        end
+        
+        fprintf('Model opened: %s\n', model_file);
         
         % 3. 设置模型参数
         fprintf('Setting parameters...\n');
@@ -55,7 +65,13 @@ function run_plecs_simulation()
         % 4. 运行仿真
         fprintf('Running simulation...\n');
         tic;
-        sim(model_name);
+        
+        if exist('plecs_simulate', 'file')
+            plecs_simulate();
+        else
+            sim(model_name);
+        end
+        
         sim_time = toc;
         fprintf('Simulation completed in %.2f seconds\n', sim_time);
         
@@ -95,7 +111,11 @@ function run_plecs_simulation()
         
         % 7. 关闭模型
         fprintf('Closing model...\n');
-        close_system(model_name, 0);
+        if exist('plecs_close_model', 'file')
+            plecs_close_model();
+        else
+            close_system(model_name, 0);
+        end
         
         fprintf('========================================\n');
         fprintf('Simulation completed successfully\n');
@@ -112,7 +132,11 @@ function run_plecs_simulation()
         
         % 尝试关闭模型
         try
-            close_system(model_name, 0);
+            if exist('plecs_close_model', 'file')
+                plecs_close_model();
+            else
+                close_system(model_name, 0);
+            end
         catch
         end
         
@@ -122,17 +146,15 @@ end
 
 % 简易 JSON 读取函数
 function data = read_json(filename)
-    fid = fopen(filename, 'r');
+    fid = fopen(filename, 'r', 'n', 'UTF-8');
     if fid == -1
         error('Cannot open file: %s', filename);
     end
     content = fileread(filename);
     fclose(fid);
     
-    % 解析 JSON（简化版，只支持数字和字符串）
+    % 解析 JSON（简化版，只支持数字）
     data = struct();
-    
-    % 提取 Lr
     data.Lr = extract_number(content, 'Lr');
     data.Crp = extract_number(content, 'Crp');
     data.Crs = extract_number(content, 'Crs');
@@ -147,7 +169,7 @@ end
 
 % 简易 JSON 写入函数
 function write_json(filename, data)
-    fid = fopen(filename, 'w');
+    fid = fopen(filename, 'w', 'n', 'UTF-8');
     if fid == -1
         error('Cannot write file: %s', filename);
     end
@@ -164,10 +186,7 @@ function write_json(filename, data)
         fprintf(fid, '  "simulation_time_sec": %.2f,\n', data.simulation_time_sec);
     end
     if isfield(data, 'error')
-        fprintf(fid, '  "error": "%s",\n', data.error);
-    end
-    if isfield(data, 'timestamp')
-        fprintf(fid, '  "timestamp": "%s"\n', data.timestamp);
+        fprintf(fid, '  "error": "%s"\n', data.error);
     else
         fprintf(fid, '  "timestamp": "%s"\n', char(datetime('now')));
     end
