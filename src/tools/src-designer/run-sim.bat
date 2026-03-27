@@ -18,17 +18,7 @@ if not exist "plecs_input.json" (
     exit /b 1
 )
 
-echo Starting MATLAB...
-echo.
-
-matlab -batch "test_plecs"
-echo.
-echo Test completed. Check results above.
-echo.
-pause
-
-echo.
-echo Starting simulation...
+echo Starting MATLAB simulation...
 echo.
 
 matlab -batch "run_plecs_simulation"

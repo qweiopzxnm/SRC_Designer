@@ -7,13 +7,21 @@ function run_plecs_simulation()
     fprintf('========================================\n');
     
     try
-        % 1. 读取参数
-        fprintf('Reading parameters...\n');
-        params = read_json('plecs_input.json');
-        fprintf('Vin=%.1fV, Po=%.1fW, Lr=%.1fuH, Lm=%.1fuH\n', ...
-            params.Vin, params.Po, params.Lr*1e6, params.Lm*1e6);
+        % 1. 添加 PLECS 路径
+        plecs_path = 'C:\Users\m1774\Documents\Plexim\PLECS 4.7 (64 bit)';
+        addpath(plecs_path);
+        fprintf('PLECS path: %s\n', plecs_path);
         
-        % 2. 获取模型路径
+        % 2. 读取参数
+        fprintf('\nReading parameters...\n');
+        params = read_json('plecs_input.json');
+        fprintf('Vin=%.1fV, Po=%.1fW\n', params.Vin, params.Po);
+        fprintf('Lr=%.1fuH, Crp=%.1fnF, Crs=%.1fnF\n', ...
+            params.Lr*1e6, params.Crp*1e9, params.Crs*1e9);
+        fprintf('Lm=%.1fuH, Np=%d, Ns=%d\n', ...
+            params.Lm*1e6, params.Np, params.Ns);
+        
+        % 3. 获取模型路径
         current_dir = pwd;
         model_file = 'SRC.plecs';
         
@@ -21,86 +29,91 @@ function run_plecs_simulation()
             error('Model file not found: %s', model_file);
         end
         
-        fprintf('Model: %s\n', model_file);
+        fprintf('\nModel: %s\n', model_file);
         
-        % 3. 使用 PLECS API 打开模型
+        % 4. 打开 PLECS 模型
         fprintf('Opening PLECS model...\n');
         
-        % 检查是否有 PLECS API
-        if ~exist('plecs_open_model', 'file')
-            error('PLECS API not found. Please ensure PLECS is installed.');
-        end
-        
-        % 打开模型
-        plecs_open_model(model_file);
+        % 使用 PLECS Standalone API
+        plecs('open', model_file);
         fprintf('Model opened successfully\n');
         
-        % 4. 设置参数（通过 PLECS API）
-        fprintf('Setting parameters...\n');
+        % 等待模型加载
+        pause(0.5);
         
-        plecs_set_param('Lr', num2str(params.Lr));
-        plecs_set_param('Crp', num2str(params.Crp));
-        plecs_set_param('Crs', num2str(params.Crs));
-        plecs_set_param('Lm', num2str(params.Lm));
-        plecs_set_param('Np', num2str(params.Np));
-        plecs_set_param('Ns', num2str(params.Ns));
-        plecs_set_param('Vin', num2str(params.Vin));
-        plecs_set_param('Vref', num2str(params.Vref));
-        plecs_set_param('Rload', num2str(params.Rload));
+        % 5. 设置参数
+        fprintf('\nSetting parameters...\n');
         
-        fprintf('Parameters set\n');
+        % 通过 PLECS API 设置
+        plecs('set', 'Lr', num2str(params.Lr));
+        plecs('set', 'Crp', num2str(params.Crp));
+        plecs('set', 'Crs', num2str(params.Crs));
+        plecs('set', 'Lm', num2str(params.Lm));
+        plecs('set', 'Np', num2str(params.Np));
+        plecs('set', 'Ns', num2str(params.Ns));
+        plecs('set', 'Vin', num2str(params.Vin));
+        plecs('set', 'Vref', num2str(params.Vref));
+        plecs('set', 'Rload', num2str(params.Rload));
         
-        % 5. 运行仿真
-        fprintf('Running simulation...\n');
+        fprintf('All parameters set\n');
+        
+        % 6. 运行仿真
+        fprintf('\nRunning simulation...\n');
         tic;
         
-        plecs_simulate();
+        plecs('simulate');
         
         sim_time = toc;
         fprintf('Simulation completed: %.2f s\n', sim_time);
         
-        % 6. 提取结果
-        fprintf('Extracting results...\n');
+        % 7. 提取结果
+        fprintf('\nExtracting results...\n');
         
-        % 从 PLECS 工作区获取数据
-        % 注意：信号名是 ILrp（不是 I_Lrp）
+        % 从工作区获取 ILrp 数据
         if exist('ILrp', 'var')
             i_data = ILrp;
-            fprintf('ILrp data points: %d\n', length(i_data));
+            n_points = length(i_data);
+            fprintf('ILrp data points: %d\n', n_points);
             
             % 计算有效值（去掉前 10% 暂态）
-            idx_start = floor(length(i_data) * 0.1) + 1;
+            idx_start = floor(n_points * 0.1) + 1;
             i_steady = i_data(idx_start:end);
             
             Irms = sqrt(mean(i_steady.^2));
             Ipeak = max(abs(i_steady));
             
-            fprintf('Irms = %.3f A\n', Irms);
-            fprintf('Ipeak = %.3f A\n', Ipeak);
+            fprintf('\nResults:\n');
+            fprintf('  Irms  = %.3f A\n', Irms);
+            fprintf('  Ipeak = %.3f A\n', Ipeak);
         else
-            fprintf('Warning: ILrp not found, using estimate\n');
+            fprintf('Warning: ILrp not found in workspace\n');
+            fprintf('Using estimate...\n');
             Irms = params.Po / params.Vin * 1.2;
             Ipeak = Irms * sqrt(2);
         end
         
-        % 7. 保存结果
+        % 8. 保存结果
         result.Lrms = Irms;
         result.Ipeak = Ipeak;
         result.simulation_time_sec = sim_time;
         result.success = true;
         
         write_json('plecs_output.json', result);
-        fprintf('Results saved to plecs_output.json\n');
+        fprintf('\nResults saved to plecs_output.json\n');
         
-        % 8. 关闭模型
-        plecs_close_model();
+        % 9. 关闭模型
+        fprintf('Closing model...\n');
+        plecs('close');
         
-        fprintf('========================================\n');
+        fprintf('\n========================================\n');
         fprintf('SUCCESS\n');
         fprintf('========================================\n');
         
     catch err
-        fprintf('\nFAILED: %s\n', err.message);
+        fprintf('\n========================================\n');
+        fprintf('FAILED\n');
+        fprintf('========================================\n');
+        fprintf('Error: %s\n', err.message);
         
         error_result.success = false;
         error_result.error = err.message;
@@ -108,28 +121,6 @@ function run_plecs_simulation()
         
         rethrow(err);
     end
-end
-
-% PLECS API 封装
-function plecs_open_model(filename)
-    % 使用 PLECS Standalone API
-    addpath('C:\Program Files\PLECS');
-    plecs('open', filename);
-end
-
-function plecs_set_param(name, value)
-    % 设置模型参数
-    evalin('base', [name ' = ' value ';']);
-end
-
-function plecs_simulate()
-    % 运行仿真
-    sim('SRC');
-end
-
-function plecs_close_model()
-    % 关闭模型
-    close_system('SRC', 0);
 end
 
 % JSON 读取
