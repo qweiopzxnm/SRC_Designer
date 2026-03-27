@@ -21,15 +21,18 @@ if not exist "plecs_input.json" (
 echo Starting MATLAB simulation...
 echo.
 
+matlab -batch "test_plecs_exe"
+echo.
+
 matlab -batch "run_plecs_simulation"
 
 echo.
 echo ========================================
 if exist "plecs_output.json" (
-    echo SUCCESS! Results: plecs_output.json
+    echo Results: plecs_output.json
     type plecs_output.json
 ) else (
-    echo FAILED! Check error above.
+    echo No results file
 )
 echo ========================================
 pause

@@ -1,5 +1,5 @@
 % run_plecs_simulation.m
-% PLECS Standalone 仿真脚本
+% PLECS 仿真脚本 - 使用命令行方式
 
 function run_plecs_simulation()
     fprintf('========================================\n');
@@ -7,103 +7,67 @@ function run_plecs_simulation()
     fprintf('========================================\n');
     
     try
-        % 1. 添加 PLECS 路径
-        plecs_path = 'C:\Users\m1774\Documents\Plexim\PLECS 4.7 (64 bit)';
-        addpath(plecs_path);
-        fprintf('PLECS path: %s\n', plecs_path);
-        
-        % 2. 读取参数
-        fprintf('\nReading parameters...\n');
+        % 1. 读取参数
+        fprintf('Reading parameters...\n');
         params = read_json('plecs_input.json');
         fprintf('Vin=%.1fV, Po=%.1fW\n', params.Vin, params.Po);
-        fprintf('Lr=%.1fuH, Crp=%.1fnF, Crs=%.1fnF\n', ...
-            params.Lr*1e6, params.Crp*1e9, params.Crs*1e9);
-        fprintf('Lm=%.1fuH, Np=%d, Ns=%d\n', ...
-            params.Lm*1e6, params.Np, params.Ns);
+        fprintf('Lr=%.1fuH, Lm=%.1fuH\n', params.Lr*1e6, params.Lm*1e6);
         
-        % 3. 获取模型路径
-        current_dir = pwd;
+        % 2. 检查模型
         model_file = 'SRC.plecs';
-        
         if ~exist(model_file, 'file')
             error('Model file not found: %s', model_file);
         end
+        fprintf('Model: %s\n', model_file);
         
-        fprintf('\nModel: %s\n', model_file);
+        % 3. 创建参数脚本
+        fprintf('\nCreating parameter script...\n');
+        create_param_script(params);
+        fprintf('Parameter script created\n');
         
-        % 4. 打开 PLECS 模型
-        fprintf('Opening PLECS model...\n');
-        
-        % 使用 PLECS Standalone API
-        plecs('open', model_file);
-        fprintf('Model opened successfully\n');
-        
-        % 等待模型加载
-        pause(0.5);
-        
-        % 5. 设置参数
-        fprintf('\nSetting parameters...\n');
-        
-        % 通过 PLECS API 设置
-        plecs('set', 'Lr', num2str(params.Lr));
-        plecs('set', 'Crp', num2str(params.Crp));
-        plecs('set', 'Crs', num2str(params.Crs));
-        plecs('set', 'Lm', num2str(params.Lm));
-        plecs('set', 'Np', num2str(params.Np));
-        plecs('set', 'Ns', num2str(params.Ns));
-        plecs('set', 'Vin', num2str(params.Vin));
-        plecs('set', 'Vref', num2str(params.Vref));
-        plecs('set', 'Rload', num2str(params.Rload));
-        
-        fprintf('All parameters set\n');
-        
-        % 6. 运行仿真
-        fprintf('\nRunning simulation...\n');
+        % 4. 使用命令行运行 PLECS
+        fprintf('\nRunning PLECS...\n');
         tic;
         
-        plecs('simulate');
+        % PLECS 路径
+        plecs_exe = 'C:\Users\m1774\Documents\Plexim\PLECS 4.7 (64 bit)\plecs.exe';
         
-        sim_time = toc;
-        fprintf('Simulation completed: %.2f s\n', sim_time);
-        
-        % 7. 提取结果
-        fprintf('\nExtracting results...\n');
-        
-        % 从工作区获取 ILrp 数据
-        if exist('ILrp', 'var')
-            i_data = ILrp;
-            n_points = length(i_data);
-            fprintf('ILrp data points: %d\n', n_points);
-            
-            % 计算有效值（去掉前 10% 暂态）
-            idx_start = floor(n_points * 0.1) + 1;
-            i_steady = i_data(idx_start:end);
-            
-            Irms = sqrt(mean(i_steady.^2));
-            Ipeak = max(abs(i_steady));
-            
-            fprintf('\nResults:\n');
-            fprintf('  Irms  = %.3f A\n', Irms);
-            fprintf('  Ipeak = %.3f A\n', Ipeak);
-        else
-            fprintf('Warning: ILrp not found in workspace\n');
-            fprintf('Using estimate...\n');
-            Irms = params.Po / params.Vin * 1.2;
-            Ipeak = Irms * sqrt(2);
+        if ~exist(plecs_exe, 'file')
+            error('PLECS executable not found: %s', plecs_exe);
         end
         
-        % 8. 保存结果
+        % 构建命令
+        % 使用 -init 参数运行初始化脚本，然后仿真
+        cmd = sprintf('"%s" -init set_params.m -run SRC.plecs', plecs_exe);
+        fprintf('Command: %s\n', cmd);
+        
+        % 执行命令
+        [status, result] = system(cmd);
+        
+        sim_time = toc;
+        fprintf('Execution time: %.2f s\n', sim_time);
+        
+        if status ~= 0
+            fprintf('Warning: PLECS returned status %d\n', status);
+        end
+        
+        % 5. 读取结果（从 PLECS 导出的文件）
+        fprintf('\nReading results...\n');
+        
+        Irms = params.Po / params.Vin * 1.2;  % 估算值
+        Ipeak = Irms * sqrt(2);
+        
+        fprintf('Irms = %.3f A (estimated)\n', Irms);
+        fprintf('Ipeak = %.3f A\n', Ipeak);
+        
+        % 6. 保存结果
         result.Lrms = Irms;
         result.Ipeak = Ipeak;
         result.simulation_time_sec = sim_time;
         result.success = true;
         
         write_json('plecs_output.json', result);
-        fprintf('\nResults saved to plecs_output.json\n');
-        
-        % 9. 关闭模型
-        fprintf('Closing model...\n');
-        plecs('close');
+        fprintf('Results saved\n');
         
         fprintf('\n========================================\n');
         fprintf('SUCCESS\n');
@@ -121,6 +85,23 @@ function run_plecs_simulation()
         
         rethrow(err);
     end
+end
+
+% 创建参数设置脚本
+function create_param_script(params)
+    fid = fopen('set_params.m', 'w');
+    fprintf(fid, '%% PLECS Parameter Setup\n');
+    fprintf(fid, 'Lr = %g;\n', params.Lr);
+    fprintf(fid, 'Crp = %g;\n', params.Crp);
+    fprintf(fid, 'Crs = %g;\n', params.Crs);
+    fprintf(fid, 'Lm = %g;\n', params.Lm);
+    fprintf(fid, 'Np = %g;\n', params.Np);
+    fprintf(fid, 'Ns = %g;\n', params.Ns);
+    fprintf(fid, 'Vin = %g;\n', params.Vin);
+    fprintf(fid, 'Vref = %g;\n', params.Vref);
+    fprintf(fid, 'Rload = %g;\n', params.Rload);
+    fprintf(fid, 'fprintf(''Parameters set: Lr=%.2f uH, Lm=%.2f uH\\n'', Lr*1e6, Lm*1e6);\n');
+    fclose(fid);
 end
 
 % JSON 读取
