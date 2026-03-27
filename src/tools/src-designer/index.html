@@ -3,58 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SRC 设计工具 - 串联谐振变换器</title>
+  <title>LLC 设计工具 - 谐振变换器</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>⚡ SRC 设计工具</h1>
-      <p class="subtitle">串联谐振变换器 (Series Resonant Converter) 自动设计</p>
+      <h1>⚡ LLC 设计工具</h1>
+      <p class="subtitle">LLC 谐振变换器自动设计与优化</p>
     </header>
 
     <main>
       <!-- 输入面板 -->
       <section class="panel input-panel">
-        <h2>📋 输入参数</h2>
+        <h2>📋 设计参数 (Dsnpara)</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="Vin_min">输入电压最小值 (V)</label>
-            <input type="number" id="Vin_min" value="300" step="10">
+            <label for="Vin_max">最大输入电压 Vin_max (V)</label>
+            <input type="number" id="Vin_max" value="810" step="10">
           </div>
           <div class="form-group">
-            <label for="Vin_max">输入电压最大值 (V)</label>
-            <input type="number" id="Vin_max" value="400" step="10">
+            <label for="Vo_nom">额定输出电压 Vo_nom (V)</label>
+            <input type="number" id="Vo_nom" value="680" step="1">
           </div>
           <div class="form-group">
-            <label for="Vo">输出电压 (V)</label>
-            <input type="number" id="Vo" value="48" step="1">
+            <label for="Po">输出功率 Po (W)</label>
+            <input type="number" id="Po" value="11000" step="100">
           </div>
           <div class="form-group">
-            <label for="Io">输出电流 (A)</label>
-            <input type="number" id="Io" value="10" step="0.1">
+            <label for="fr">谐振频率 fr (kHz)</label>
+            <input type="number" id="fr" value="130" step="5">
           </div>
           <div class="form-group">
-            <label for="fs_min">开关频率最小值 (kHz)</label>
-            <input type="number" id="fs_min" value="100" step="10">
+            <label for="Np">原边匝数 Np</label>
+            <input type="number" id="Np" value="24" step="1">
           </div>
           <div class="form-group">
-            <label for="fs_max">开关频率最大值 (kHz)</label>
-            <input type="number" id="fs_max" value="200" step="10">
+            <label for="Ns">副边匝数 Ns</label>
+            <input type="number" id="Ns" value="23" step="1">
           </div>
           <div class="form-group">
-            <label for="fr">谐振频率 (kHz)</label>
-            <input type="number" id="fr" value="110" step="10">
-            <small>建议略高于 fs_min</small>
+            <label for="Q">品质因数 Q</label>
+            <input type="number" id="Q" value="0.62" step="0.01" min="0.1" max="2">
+            <small>典型值 0.3-1.0</small>
           </div>
           <div class="form-group">
-            <label for="Q_max">最大品质因数 Q</label>
-            <input type="number" id="Q_max" value="1.0" step="0.1" min="0.1" max="5">
+            <label for="fs_ratio">最小开关频率比 fs_min/fr</label>
+            <input type="number" id="fs_ratio" value="1.2" step="0.1" min="1.0" max="2.0">
+          </div>
+          <div class="form-group">
+            <label for="C_unit">单颗电容容量 (nF)</label>
+            <input type="number" id="C_unit" value="47" step="1" min="1">
+            <small id="c_unit_hint">用于计算并联数量</small>
+          </div>
+          <div class="form-group">
+            <label for="L_step">电感分辨率 (μH)</label>
+            <input type="number" id="L_step" value="1" step="0.1" min="0.1">
+            <small>电感值按此分辨率取整</small>
+          </div>
+          <div class="form-group">
+            <label for="Lm">励磁电感 Lm (μH)</label>
+            <input type="number" id="Lm" value="400" step="10" min="50">
+            <small>典型值为 Lr 的 3-6 倍</small>
           </div>
         </div>
         <div class="button-group">
-          <button id="btn-calculate" class="btn btn-primary">🔧 开始计算</button>
+          <button id="btn-calculate" class="btn btn-primary">🔧 自动优化计算</button>
           <button id="btn-export" class="btn btn-secondary">📥 导出报告</button>
+          <button id="btn-plecs" class="btn btn-outline">🔌 导出 PLECS 参数</button>
           <button id="btn-reset" class="btn btn-outline">🔄 重置</button>
         </div>
       </section>
@@ -63,121 +79,124 @@
       <section class="panel results-panel" id="results-panel">
         <h2>📊 计算结果</h2>
         
-        <!-- 谐振参数 -->
+        <!-- 设计参数 -->
         <div class="result-section">
-          <h3>谐振参数</h3>
+          <h3>设计参数 (Dsnpara)</h3>
           <div class="result-grid">
             <div class="result-item">
+              <span class="label">电压增益 M</span>
+              <span class="value" id="dsn-M">-</span>
+            </div>
+            <div class="result-item">
               <span class="label">变压器匝比</span>
-              <span class="value" id="res-n">-</span>
-              <span class="unit">n:1:1</span>
+              <span class="value" id="dsn-Tratio">-</span>
+              <span class="unit">Np:Ns</span>
+            </div>
+            <div class="result-item">
+              <span class="label">总增益 Gain</span>
+              <span class="value" id="dsn-Gain">-</span>
+            </div>
+            <div class="result-item">
+              <span class="label">等效交流电阻 Rac</span>
+              <span class="value" id="dsn-Rac">-</span>
+              <span class="unit">Ω</span>
+            </div>
+            <div class="result-item">
+              <span class="label">反射电阻 Racp</span>
+              <span class="value" id="dsn-Racp">-</span>
+              <span class="unit">Ω</span>
+            </div>
+            <div class="result-item">
+              <span class="label">特征阻抗 Zr</span>
+              <span class="value" id="dsn-Zr">-</span>
+              <span class="unit">Ω</span>
             </div>
             <div class="result-item">
               <span class="label">谐振电感 Lr</span>
-              <span class="value" id="res-Lr">-</span>
+              <span class="value" id="dsn-Lr">-</span>
               <span class="unit">μH</span>
             </div>
             <div class="result-item">
               <span class="label">谐振电容 Cr</span>
-              <span class="value" id="res-Cr">-</span>
+              <span class="value" id="dsn-Cr">-</span>
               <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">谐振频率</span>
-              <span class="value" id="res-fr">-</span>
+              <span class="label">最小开关频率 fs_min</span>
+              <span class="value" id="dsn-fs_min">-</span>
               <span class="unit">kHz</span>
             </div>
             <div class="result-item">
-              <span class="label">特征阻抗</span>
-              <span class="value" id="res-Zo">-</span>
-              <span class="unit">Ω</span>
+              <span class="label">谐振腔电压 Vintank</span>
+              <span class="value" id="dsn-Vintank">-</span>
+              <span class="unit">V</span>
             </div>
             <div class="result-item">
-              <span class="label">品质因数</span>
-              <span class="value" id="res-Q">-</span>
+              <span class="label">谐振电流峰值 Irpk</span>
+              <span class="value" id="dsn-Irpk">-</span>
+              <span class="unit">A</span>
             </div>
           </div>
         </div>
 
-        <!-- 器件应力 -->
+        <!-- 实际选定参数 -->
         <div class="result-section">
-          <h3>器件应力</h3>
-          <div class="stress-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>位置</th>
-                  <th>参数</th>
-                  <th>值</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td rowspan="3">原边开关管</td>
-                  <td>Vds_max</td>
-                  <td id="stress-Vds">-</td>
-                </tr>
-                <tr>
-                  <td>I_pri_rms</td>
-                  <td id="stress-Irms">-</td>
-                </tr>
-                <tr>
-                  <td>I_pri_peak</td>
-                  <td id="stress-Ipeak">-</td>
-                </tr>
-                <tr>
-                  <td rowspan="2">副边整流管</td>
-                  <td>Vd_max</td>
-                  <td id="stress-Vd">-</td>
-                </tr>
-                <tr>
-                  <td>Id_rms</td>
-                  <td id="stress-Id">-</td>
-                </tr>
-                <tr>
-                  <td rowspan="2">谐振元件</td>
-                  <td>Vcr_peak</td>
-                  <td id="stress-Vcr">-</td>
-                </tr>
-                <tr>
-                  <td>Ilr_peak</td>
-                  <td id="stress-Ilr">-</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 工作特性 -->
-        <div class="result-section">
-          <h3>工作特性</h3>
+          <h3>实际选定参数 (Actpara)</h3>
           <div class="result-grid">
             <div class="result-item">
-              <span class="label">ZVS 状态</span>
-              <span class="value" id="zvs-status">-</span>
+              <span class="label">原边谐振电容 Cr_p</span>
+              <span class="value" id="act-Cr_p">-</span>
+              <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">ZVS 裕量</span>
-              <span class="value" id="zvs-margin">-</span>
+              <span class="label">原边电容并联数量</span>
+              <span class="value" id="act-Np_cap">-</span>
+              <span class="unit">颗</span>
+            </div>
+            <div class="result-item">
+              <span class="label">副边谐振电容 Cr_s</span>
+              <span class="value" id="act-Cr_s">-</span>
+              <span class="unit">nF</span>
+            </div>
+            <div class="result-item">
+              <span class="label">副边电容并联数量</span>
+              <span class="value" id="act-Ns_cap">-</span>
+              <span class="unit">颗</span>
+            </div>
+            <div class="result-item">
+              <span class="label">原边谐振电感 Lr_p</span>
+              <span class="value" id="act-Lr_p">-</span>
+              <span class="unit">μH</span>
+            </div>
+            <div class="result-item">
+              <span class="label">等效电容 Ceq</span>
+              <span class="value" id="act-Ceq">-</span>
+              <span class="unit">nF</span>
+            </div>
+            <div class="result-item">
+              <span class="label">设计电容 Cr</span>
+              <span class="value" id="act-Cr_target">-</span>
+              <span class="unit">nF</span>
+            </div>
+            <div class="result-item">
+              <span class="label">Ceq 偏离度</span>
+              <span class="value" id="act-deviation">-</span>
               <span class="unit">%</span>
             </div>
             <div class="result-item">
-              <span class="label">死区时间要求</span>
-              <span class="value" id="zvs-tdead">-</span>
-              <span class="unit">ns</span>
+              <span class="label">实际 Q 值</span>
+              <span class="value" id="act-Q">-</span>
             </div>
-            <div class="result-item highlight">
-              <span class="label">估算效率</span>
-              <span class="value" id="eff-efficiency">-</span>
-              <span class="unit">%</span>
+            <div class="result-item">
+              <span class="label">实际谐振频率</span>
+              <span class="value" id="act-fr">-</span>
+              <span class="unit">kHz</span>
+            </div>
+            <div class="result-item">
+              <span class="label">电感比 k (Lm/Lr)</span>
+              <span class="value" id="act-k">-</span>
             </div>
           </div>
-        </div>
-
-        <!-- 增益曲线 -->
-        <div class="result-section">
-          <h3>增益曲线</h3>
-          <canvas id="gain-curve" width="600" height="300"></canvas>
         </div>
 
         <!-- 设计报告 -->
@@ -189,7 +208,7 @@
     </main>
 
     <footer>
-      <p>小艺 ⚡ 电力电子全栈工程师助理</p>
+      <p>小艺 ⚡ 基于 MATLAB LLC 设计算法</p>
     </footer>
   </div>
 
