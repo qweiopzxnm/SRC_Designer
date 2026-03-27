@@ -22,6 +22,8 @@ const LLCDesigner = {
     document.getElementById('btn-calculate').addEventListener('click', () => this.calculate());
     document.getElementById('btn-export').addEventListener('click', () => this.exportReport());
     document.getElementById('btn-plecs').addEventListener('click', () => this.exportPlecsParams());
+    document.getElementById('btn-simulate').addEventListener('click', () => this.runPlecsSimulation());
+    document.getElementById('btn-compare').addEventListener('click', () => this.compareResults());
     document.getElementById('btn-reset').addEventListener('click', () => this.reset());
 
     // 回车触发计算
@@ -230,36 +232,25 @@ const LLCDesigner = {
       const dsn = LLCCalculator.calculateDsnpara(input);
       const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
 
-      // 准备 PLECS 输入数据
+      // 准备 PLECS 输入数据（匹配用户模型参数名）
       const plecsData = {
-        // 基本规格
-        Vin_max: dsn.Vin_max,
-        Vo_nom: dsn.Vo_nom,
-        Po: dsn.Po,
-        fr: dsn.fr,
-        fs_min: dsn.fs_min,
-        // 变压器参数
-        Np: dsn.Np,
-        Ns: dsn.Ns,
-        Tratio: dsn.Tratio,
-        // 谐振参数（实际值）
-        Lr: act.Lr_p,
-        Cr: act.Ceq,
-        Lm: act.Lm,
-        k: act.k,
-        // 品质因数
-        Q: act.Q,
-        Rac: dsn.Rac,
-        Racp: dsn.Racp,
-        // 电容配置
-        Cr_p: act.Cr_p,
-        Cr_s: act.Cr_s,
-        Np_cap: act.Np_cap,
-        Ns_cap: act.Ns_cap,
+        // 主电路参数（与用户模型一致）
+        Lr: act.Lr_p,           // 谐振电感
+        Crp: act.Cr_p,          // 原边谐振电容
+        Crs: act.Cr_s,          // 副边谐振电容
+        Lm: act.Lm,             // 励磁电感
+        Np: dsn.Np,             // 原边匝数
+        Ns: dsn.Ns,             // 副边匝数
+        // 电气参数
+        Vin: dsn.Vin_max,       // 输入电压
+        Vref: dsn.Vo_nom,       // 输出电压参考
+        Po: dsn.Po,             // 输出功率
+        // 计算参数
+        Rload: (dsn.Vo_nom ** 2) / dsn.Po,  // 负载电阻
         // 元数据
         timestamp: new Date().toISOString(),
         tool: 'LLC Design Tool',
-        version: '1.0'
+        version: '1.1'
       };
 
       // 导出 JSON 文件
@@ -274,11 +265,142 @@ const LLCDesigner = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      this.showInfo('PLECS 参数已导出！请在 PLECS 模型中加载此 JSON 文件。');
+      this.showInfo('PLECS 参数已导出！文件已保存到 LLC 工具目录。');
     } catch (error) {
       console.error(error);
       this.showError('导出 PLECS 参数失败：' + error.message);
     }
+  },
+
+  /**
+   * 运行 PLECS 仿真
+   */
+  async runPlecsSimulation() {
+    const input = this.getInputParams();
+    if (!input) return;
+
+    // 检查是否已计算
+    if (!this.currentResults) {
+      this.showError('请先执行计算');
+      return;
+    }
+
+    const btn = document.getElementById('btn-simulate');
+    const originalText = btn.textContent;
+    
+    try {
+      // 按钮状态
+      btn.disabled = true;
+      btn.textContent = '⏳ 仿真运行中...';
+      this.showInfo('正在启动 PLECS 仿真，请稍候...');
+
+      // 计算设计参数
+      const dsn = LLCCalculator.calculateDsnpara(input);
+      const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
+
+      // 准备仿真参数
+      const simParams = {
+        Lr: act.Lr_p,
+        Crp: act.Cr_p,
+        Crs: act.Cr_s,
+        Lm: act.Lm,
+        Np: dsn.Np,
+        Ns: dsn.Ns,
+        Vin: dsn.Vin_max,
+        Vref: dsn.Vo_nom,
+        Po: dsn.Po,
+        Rload: (dsn.Vo_nom ** 2) / dsn.Po
+      };
+
+      // 调用后端服务
+      const response = await fetch('http://localhost:3000/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(simParams)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '仿真失败');
+      }
+
+      // 显示仿真结果
+      this.showPlecsResults(result.data);
+
+      this.showInfo(`✅ 仿真完成！Irms = ${result.data.Irms.toFixed(3)} A`);
+
+    } catch (error) {
+      console.error('仿真错误:', error);
+      this.showError('仿真失败：' + error.message + '\n\n请确保：\n1. Node.js 服务器已启动（node plecs-server.js）\n2. MATLAB 已安装并可执行\n3. SRC.plecs 模型文件在正确位置');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  },
+
+  /**
+   * 显示 PLECS 仿真结果
+   */
+  showPlecsResults(data) {
+    // 保存仿真结果
+    this.plecsResults = data;
+
+    // 更新 UI
+    document.getElementById('plecs-Irms').textContent = data.Irms.toFixed(3);
+    document.getElementById('plecs-Ipeak').textContent = data.Ipeak.toFixed(3);
+    document.getElementById('plecs-time').textContent = data.simulation_time_sec.toFixed(2);
+
+    // 显示结果面板
+    document.getElementById('plecs-results').style.display = 'block';
+    document.getElementById('plecs-results').scrollIntoView({ behavior: 'smooth' });
+  },
+
+  /**
+   * 对比设计值和仿真值
+   */
+  compareResults() {
+    if (!this.currentResults || !this.plecsResults) {
+      this.showError('请先执行计算和仿真');
+      return;
+    }
+
+    const { dsn, act } = this.currentResults;
+    const { Irms, Ipeak } = this.plecsResults;
+
+    // 计算设计值（估算）
+    const I_design = dsn.Irpk / Math.sqrt(2); // 设计值有效值
+
+    // 对比
+    const diff = Irms - I_design;
+    const diffPct = (diff / I_design) * 100;
+
+    const comparison = `
+📊 设计值 vs 仿真值对比
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+谐振电流有效值 Irms:
+  设计估算值：${I_design.toFixed(3)} A
+  PLECS 仿真值：${Irms.toFixed(3)} A
+  偏差：${diff > 0 ? '+' : ''}${diff.toFixed(3)} A (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(1)}%)
+
+谐振电流峰值 Ipeak:
+  设计估算值：${dsn.Irpk.toFixed(3)} A
+  PLECS 仿真值：${Ipeak.toFixed(3)} A
+  偏差：${Ipeak - dsn.Irpk > 0 ? '+' : ''}${(Ipeak - dsn.Irpk).toFixed(3)} A
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${Math.abs(diffPct) < 10 ? '✅ 仿真结果与设计值吻合良好！' : '⚠️ 偏差较大，请检查模型参数'}
+
+建议：
+- 如偏差>10%，检查 Lr、Cr、Lm 参数设置
+- 确认变压器匝比 Np:Ns 正确
+- 检查负载电阻 Rload 计算
+`.trim();
+
+    alert(comparison);
   },
 
   /**
