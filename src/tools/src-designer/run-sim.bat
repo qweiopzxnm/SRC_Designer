@@ -11,20 +11,19 @@ if not exist "SRC.plecs" (
     exit /b 1
 )
 
-REM 检查参数文件
-if exist "plecs_input.json" (
-    echo Found: plecs_input.json
-) else if exist "PLECS_Params_*.json" (
-    echo Found: PLECS_Params_*.json
-    copy PLECS_Params_*.json plecs_input.json >nul
-    echo Copied to: plecs_input.json
-) else (
-    echo ERROR: No PLECS parameter file found!
-    echo Please export parameters from LLC tool first.
-    pause
-    exit /b 1
-)
+if exist "plecs_input.json" goto run_matlab
+if exist "PLECS_Params_*.json" goto copy_params
 
+echo ERROR: No PLECS parameter file found!
+echo Please export parameters from LLC tool first.
+pause
+exit /b 1
+
+:copy_params
+copy PLECS_Params_*.json plecs_input.json
+echo Copied to: plecs_input.json
+
+:run_matlab
 echo.
 echo Starting MATLAB...
 echo.
