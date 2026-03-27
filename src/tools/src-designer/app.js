@@ -259,13 +259,13 @@ const LLCDesigner = {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `PLECS_Params_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `plecs_input.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      this.showInfo('PLECS 参数已导出！文件已保存到 LLC 工具目录。');
+      this.showInfo('PLECS 参数已导出！文件名：plecs_input.json');
     } catch (error) {
       console.error(error);
       this.showError('导出 PLECS 参数失败：' + error.message);

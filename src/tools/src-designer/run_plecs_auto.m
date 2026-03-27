@@ -27,26 +27,23 @@ function run_plecs_auto()
         % 3. 创建新的初始化命令
         fprintf('Updating parameters...\n');
         
-        new_init_commands = sprintf(...
-            'Lr = %.15g;\\nCrp = %.15g;\\nCrs = %.15g;\\nLm = %.15g;\\n' ...
-            'Np = %.0f;\\nNs = %.0f;\\n\\n' ...
-            'Vin = %.15g;\\nVref = %.15g;\\nPo = %.15g;\\n' ...
-            'Rload = Vref*Vref/Po;', ...
-            params.Lr, params.Crp, params.Crs, params.Lm, ...
-            params.Np, params.Ns, ...
-            params.Vin, params.Vref, params.Po);
+        new_init = sprintf('Lr = %.15g;\nCrp = %.15g;\nCrs = %.15g;\nLm = %.15g;\n', ...
+            params.Lr, params.Crp, params.Crs, params.Lm);
+        new_init = [new_init sprintf('Np = %.0f;\nNs = %.0f;\n\n', params.Np, params.Ns)];
+        new_init = [new_init sprintf('Vin = %.15g;\nVref = %.15g;\nPo = %.15g;\n', ...
+            params.Vin, params.Vref, params.Po)];
+        new_init = [new_init 'Rload = Vref*Vref/Po;'];
         
-        fprintf('New parameters:\n%s\n\n', strrep(new_init_commands, '\\n', '\n'));
+        fprintf('New parameters:\n%s\n\n', new_init);
         
         % 4. 替换 InitializationCommands
-        % 找到旧的 InitializationCommands 行
         old_pattern = 'InitializationCommands "[^"]*"';
+        new_init_escaped = strrep(new_init, '\', '\\');
+        new_init_escaped = strrep(new_init_escaped, '"', '\"');
+        new_init_escaped = strrep(new_init_escaped, char(10), '\n');
         
-        % 构建新的 InitializationCommands（需要处理引号和换行）
-        new_init = sprintf('InitializationCommands "%s"', new_init_commands);
-        
-        % 替换
-        new_content = regexprep(content, old_pattern, new_init);
+        new_cmd = sprintf('InitializationCommands "%s"', new_init_escaped);
+        new_content = regexprep(content, old_pattern, new_cmd);
         
         % 5. 保存修改后的模型
         backup_file = 'SRC_backup.plecs';
@@ -59,7 +56,7 @@ function run_plecs_auto()
         
         fprintf('Model updated with new parameters\n');
         
-        % 6. 提示用户手动运行或等待进一步自动化
+        % 6. 保存结果
         fprintf('\n========================================\n');
         fprintf('Model parameters updated!\n');
         fprintf('========================================\n\n');
@@ -68,7 +65,6 @@ function run_plecs_auto()
         fprintf('2. Click Simulate\n');
         fprintf('3. Check ILrp waveform\n\n');
         
-        % 保存结果（估算值）
         Irms = params.Po / params.Vin * 1.2;
         Ipeak = Irms * sqrt(2);
         
@@ -87,7 +83,6 @@ function run_plecs_auto()
     catch err
         fprintf('\nFAILED: %s\n', err.message);
         
-        % 恢复备份
         if exist('SRC_backup.plecs', 'file')
             copyfile('SRC_backup.plecs', 'SRC.plecs');
             fprintf('Model restored from backup\n');
