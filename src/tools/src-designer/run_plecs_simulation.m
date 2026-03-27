@@ -1,6 +1,5 @@
 % run_plecs_simulation.m
-% PLECS 仿真自动运行脚本
-% 编码：UTF-8
+% PLECS 仿真脚本
 
 function run_plecs_simulation()
     fprintf('========================================\n');
@@ -8,172 +7,130 @@ function run_plecs_simulation()
     fprintf('========================================\n');
     
     try
-        % 1. 读取输入参数
+        % 1. 读取参数
         fprintf('Reading parameters...\n');
         params = read_json('plecs_input.json');
         fprintf('Vin = %.1f V, Po = %.1f W\n', params.Vin, params.Po);
         
         % 2. 打开 PLECS 模型
         fprintf('Opening PLECS model...\n');
-        model_name = 'SRC';
-        model_file = 'SRC.plecs';
         
-        if ~exist(model_file, 'file')
-            error('Model file not found: %s', model_file);
+        % 获取当前目录
+        current_dir = pwd;
+        fprintf('Current directory: %s\n', current_dir);
+        
+        % 查找模型文件
+        plecs_files = dir('*.plecs');
+        if isempty(plecs_files)
+            error('No .plecs files found in current directory');
         end
         
-        % 使用 PLECS 专用函数打开模型
-        if exist('plecs_open_model', 'file')
-            % PLECS Standalone 或 PLECS Toolbox
-            plecs_open_model(model_file);
-        else
-            % 尝试直接加载
+        model_file = plecs_files(1).name;
+        fprintf('Found model file: %s\n', model_file);
+        
+        % 获取模型名（不含扩展名）
+        [model_name, ~] = fileparts(model_file);
+        fprintf('Model name: %s\n', model_name);
+        
+        % 添加当前目录到 MATLAB 路径
+        addpath(current_dir);
+        
+        % 尝试打开模型
+        try
+            % 方法 1: 直接加载文件
+            load_system(model_file);
+            fprintf('Model loaded: %s\n', model_file);
+        catch
+            % 方法 2: 使用模型名
             load_system(model_name);
+            fprintf('Model loaded: %s\n', model_name);
         end
         
-        fprintf('Model opened: %s\n', model_file);
+        % 等待模型加载完成
+        pause(1);
         
-        % 3. 设置模型参数
+        % 3. 设置参数
         fprintf('Setting parameters...\n');
         
-        % 主电路参数
-        Lr = params.Lr;
-        Crp = params.Crp;
-        Crs = params.Crs;
-        Lm = params.Lm;
-        Np = params.Np;
-        Ns = params.Ns;
-        Vin = params.Vin;
-        Vref = params.Vref;
-        Rload = params.Rload;
+        assignin('base', 'Lr', params.Lr);
+        assignin('base', 'Crp', params.Crp);
+        assignin('base', 'Crs', params.Crs);
+        assignin('base', 'Lm', params.Lm);
+        assignin('base', 'Np', params.Np);
+        assignin('base', 'Ns', params.Ns);
+        assignin('base', 'Vin', params.Vin);
+        assignin('base', 'Vref', params.Vref);
+        assignin('base', 'Rload', params.Rload);
         
-        % 设置到 workspace
-        assignin('base', 'Lr', Lr);
-        assignin('base', 'Crp', Crp);
-        assignin('base', 'Crs', Crs);
-        assignin('base', 'Lm', Lm);
-        assignin('base', 'Np', Np);
-        assignin('base', 'Ns', Ns);
-        assignin('base', 'Vin', Vin);
-        assignin('base', 'Vref', Vref);
-        assignin('base', 'Rload', Rload);
-        
-        fprintf('Lr=%.2f uH, Crp=%.2f nF, Crs=%.2f nF\n', Lr*1e6, Crp*1e9, Crs*1e9);
-        fprintf('Lm=%.2f uH, Np=%d, Ns=%d\n', Lm*1e6, Np, Ns);
-        fprintf('Vin=%.1f V, Vref=%.1f V, Rload=%.2f Ohm\n', Vin, Vref, Rload);
+        fprintf('Parameters set\n');
         
         % 4. 运行仿真
         fprintf('Running simulation...\n');
         tic;
-        
-        if exist('plecs_simulate', 'file')
-            plecs_simulate();
-        else
-            sim(model_name);
-        end
-        
+        sim(model_name);
         sim_time = toc;
-        fprintf('Simulation completed in %.2f seconds\n', sim_time);
+        fprintf('Simulation time: %.2f s\n', sim_time);
         
         % 5. 提取结果
         fprintf('Extracting results...\n');
         
         if exist('I_Lrp', 'var')
-            i_lrp = I_Lrp;
-            fprintf('I_Lrp data length: %d\n', length(i_lrp));
-            
-            % 计算有效值（取稳态部分，去掉前 10%）
-            steady_start = floor(length(i_lrp) * 0.1) + 1;
-            i_steady = i_lrp(steady_start:end);
+            i_steady = I_Lrp(floor(length(I_Lrp)*0.1)+1:end);
             Irms = sqrt(mean(i_steady.^2));
             Ipeak = max(abs(i_steady));
-            
-            fprintf('Irms = %.3f A\n', Irms);
-            fprintf('Ipeak = %.3f A\n', Ipeak);
+            fprintf('Irms = %.3f A, Ipeak = %.3f A\n', Irms, Ipeak);
         else
-            warning('I_Lrp not found, using estimate');
             Irms = params.Po / params.Vin * 1.2;
             Ipeak = Irms * sqrt(2);
-            fprintf('Estimated Irms = %.3f A\n', Irms);
+            fprintf('Using estimate: Irms = %.3f A\n', Irms);
         end
         
         % 6. 保存结果
-        fprintf('Saving results...\n');
-        
         result.Lrms = Irms;
         result.Ipeak = Ipeak;
         result.simulation_time_sec = sim_time;
         result.success = true;
-        result.timestamp = char(datetime('now'));
         
         write_json('plecs_output.json', result);
-        fprintf('Results saved to plecs_output.json\n');
+        fprintf('Results saved\n');
         
         % 7. 关闭模型
-        fprintf('Closing model...\n');
-        if exist('plecs_close_model', 'file')
-            plecs_close_model();
-        else
-            close_system(model_name, 0);
-        end
+        close_system(model_name, 0);
         
         fprintf('========================================\n');
-        fprintf('Simulation completed successfully\n');
+        fprintf('SUCCESS\n');
         fprintf('========================================\n');
         
     catch err
-        fprintf('\nSimulation failed!\n');
-        fprintf('Error: %s\n', err.message);
+        fprintf('\nFAILED: %s\n', err.message);
         
-        % 保存错误信息
         error_result.success = false;
         error_result.error = err.message;
         write_json('plecs_output.json', error_result);
-        
-        % 尝试关闭模型
-        try
-            if exist('plecs_close_model', 'file')
-                plecs_close_model();
-            else
-                close_system(model_name, 0);
-            end
-        catch
-        end
         
         rethrow(err);
     end
 end
 
-% 简易 JSON 读取函数
+% JSON 读取
 function data = read_json(filename)
-    fid = fopen(filename, 'r', 'n', 'UTF-8');
-    if fid == -1
-        error('Cannot open file: %s', filename);
-    end
     content = fileread(filename);
-    fclose(fid);
-    
-    % 解析 JSON（简化版，只支持数字）
     data = struct();
-    data.Lr = extract_number(content, 'Lr');
-    data.Crp = extract_number(content, 'Crp');
-    data.Crs = extract_number(content, 'Crs');
-    data.Lm = extract_number(content, 'Lm');
-    data.Np = extract_number(content, 'Np');
-    data.Ns = extract_number(content, 'Ns');
-    data.Vin = extract_number(content, 'Vin');
-    data.Vref = extract_number(content, 'Vref');
-    data.Rload = extract_number(content, 'Rload');
-    data.Po = extract_number(content, 'Po');
+    data.Lr = extract_num(content, 'Lr');
+    data.Crp = extract_num(content, 'Crp');
+    data.Crs = extract_num(content, 'Crs');
+    data.Lm = extract_num(content, 'Lm');
+    data.Np = extract_num(content, 'Np');
+    data.Ns = extract_num(content, 'Ns');
+    data.Vin = extract_num(content, 'Vin');
+    data.Vref = extract_num(content, 'Vref');
+    data.Rload = extract_num(content, 'Rload');
+    data.Po = extract_num(content, 'Po');
 end
 
-% 简易 JSON 写入函数
+% JSON 写入
 function write_json(filename, data)
-    fid = fopen(filename, 'w', 'n', 'UTF-8');
-    if fid == -1
-        error('Cannot write file: %s', filename);
-    end
-    
+    fid = fopen(filename, 'w');
     fprintf(fid, '{\n');
     fprintf(fid, '  "success": %s,\n', lower(num2str(data.success)));
     if isfield(data, 'Lrms')
@@ -187,20 +144,17 @@ function write_json(filename, data)
     end
     if isfield(data, 'error')
         fprintf(fid, '  "error": "%s"\n', data.error);
-    else
-        fprintf(fid, '  "timestamp": "%s"\n', char(datetime('now')));
     end
     fprintf(fid, '}\n');
-    
     fclose(fid);
 end
 
-% 从 JSON 字符串提取数字
-function value = extract_number(json_str, key)
+% 提取数字
+function val = extract_num(str, key)
     pattern = sprintf('"%s":\\s*([\\d.eE+-]+)', key);
-    tokens = regexp(json_str, pattern, 'tokens');
+    tokens = regexp(str, pattern, 'tokens');
     if isempty(tokens)
         error('Key not found: %s', key);
     end
-    value = str2double(tokens{1}{1});
+    val = str2double(tokens{1}{1});
 end
