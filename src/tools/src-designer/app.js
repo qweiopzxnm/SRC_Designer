@@ -20,10 +20,8 @@ const LLCDesigner = {
    */
   bindEvents() {
     document.getElementById('btn-calculate').addEventListener('click', () => this.calculate());
-    document.getElementById('btn-export').addEventListener('click', () => this.exportReport());
     document.getElementById('btn-plecs').addEventListener('click', () => this.exportPlecsParams());
     document.getElementById('btn-simulate').addEventListener('click', () => this.runPlecsSimulation());
-    document.getElementById('btn-compare').addEventListener('click', () => this.compareResults());
     document.getElementById('btn-reset').addEventListener('click', () => this.reset());
 
     // 回车触发计算
@@ -200,208 +198,178 @@ const LLCDesigner = {
     }
   },
 
-  /**
-   * 导出报告
-   */
-  exportReport() {
-    if (!this.currentResults) {
-      this.showError('请先执行计算');
-      return;
-    }
 
-    const blob = new Blob([this.currentResults.report], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `LLC_Design_Report_${new Date().toISOString().slice(0, 10)}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  },
 
   /**
-   * 导出 PLECS 仿真参数
+   * 导出 PLECS 参数
    */
   exportPlecsParams() {
     const input = this.getInputParams();
     if (!input) return;
 
-    try {
-      // 计算设计参数
-      const dsn = LLCCalculator.calculateDsnpara(input);
-      const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
+    const dsn = LLCCalculator.calculateDsnpara(input);
+    const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
 
-      // 准备 PLECS 输入数据（匹配用户模型参数名）
-      const plecsData = {
-        // 主电路参数（与用户模型一致）
-        Lr: act.Lr_p,           // 谐振电感
-        Crp: act.Cr_p,          // 原边谐振电容
-        Crs: act.Cr_s,          // 副边谐振电容
-        Lm: act.Lm,             // 励磁电感
-        Np: dsn.Np,             // 原边匝数
-        Ns: dsn.Ns,             // 副边匝数
-        // 电气参数
-        Vin: dsn.Vin_max,       // 输入电压
-        Vref: dsn.Vo_nom,       // 输出电压参考
-        Po: dsn.Po,             // 输出功率
-        // 计算参数
-        Rload: (dsn.Vo_nom ** 2) / dsn.Po,  // 负载电阻
-        // 元数据
-        timestamp: new Date().toISOString(),
-        tool: 'LLC Design Tool',
-        version: '1.1'
-      };
+    const plecsData = {
+      Lr: act.Lr_p,
+      Crp: act.Cr_p,
+      Crs: act.Cr_s,
+      Lm: act.Lm,
+      Np: dsn.Np,
+      Ns: dsn.Ns,
+      Vin: dsn.Vin_max,
+      Vref: dsn.Vo_nom,
+      Po: dsn.Po,
+      Rload: (dsn.Vo_nom ** 2) / dsn.Po
+    };
 
-      // 导出 JSON 文件
-      const jsonStr = JSON.stringify(plecsData, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `plecs_input.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    const jsonStr = JSON.stringify(plecsData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plecs_input.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-      this.showInfo('PLECS 参数已导出！文件名：plecs_input.json');
-    } catch (error) {
-      console.error(error);
-      this.showError('导出 PLECS 参数失败：' + error.message);
-    }
+    this.showInfo('PLECS 参数已导出：plecs_input.json');
   },
 
   /**
    * 运行 PLECS 仿真
    */
-  async runPlecsSimulation() {
-    const input = this.getInputParams();
-    if (!input) return;
-
-    // 检查是否已计算
-    if (!this.currentResults) {
-      this.showError('请先执行计算');
-      return;
-    }
-
+  runPlecsSimulation() {
     const btn = document.getElementById('btn-simulate');
-    const originalText = btn.textContent;
     
-    try {
-      // 按钮状态
+    // 先确认用户是否已完成仿真
+    const confirmed = confirm(
+      '📋 PLECS 仿真\n\n' +
+      '请确认：\n' +
+      '✓ 已导出 plecs_input.json\n' +
+      '✓ 已运行 simulate-direct.bat\n' +
+      '✓ 已获得 plecs_output.json\n\n' +
+      '点击"确定"后请选择 plecs_output.json 文件'
+    );
+    
+    if (!confirmed) return;
+
+    // 创建文件选择器
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
       btn.disabled = true;
-      btn.textContent = '⏳ 仿真运行中...';
-      this.showInfo('正在启动 PLECS 仿真，请稍候...');
-
-      // 计算设计参数
-      const dsn = LLCCalculator.calculateDsnpara(input);
-      const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
-
-      // 准备仿真参数
-      const simParams = {
-        Lr: act.Lr_p,
-        Crp: act.Cr_p,
-        Crs: act.Cr_s,
-        Lm: act.Lm,
-        Np: dsn.Np,
-        Ns: dsn.Ns,
-        Vin: dsn.Vin_max,
-        Vref: dsn.Vo_nom,
-        Po: dsn.Po,
-        Rload: (dsn.Vo_nom ** 2) / dsn.Po
+      btn.textContent = '⏳ 读取中...';
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const result = JSON.parse(event.target.result);
+          
+          if (!result.success) {
+            throw new Error(result.error || '仿真失败');
+          }
+          
+          // 显示结果
+          this.showPlecsResults(result);
+          this.showInfo('✅ 仿真完成！');
+          
+        } catch (error) {
+          console.error('仿真错误:', error);
+          this.showError('仿真失败：' + error.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '▶️ 运行 PLECS 仿真';
+        }
       };
-
-      // 调用后端服务
-      const response = await fetch('http://localhost:3000/api/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(simParams)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || '仿真失败');
-      }
-
-      // 显示仿真结果
-      this.showPlecsResults(result.data);
-
-      this.showInfo(`✅ 仿真完成！Irms = ${result.data.Irms.toFixed(3)} A`);
-
-    } catch (error) {
-      console.error('仿真错误:', error);
-      this.showError('仿真失败：' + error.message + '\n\n请确保：\n1. Node.js 服务器已启动（node plecs-server.js）\n2. MATLAB 已安装并可执行\n3. SRC.plecs 模型文件在正确位置');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
+      
+      reader.onerror = () => {
+        this.showError('读取文件失败');
+        btn.disabled = false;
+        btn.textContent = '▶️ 运行 PLECS 仿真';
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    input.click();
   },
 
   /**
    * 显示 PLECS 仿真结果
    */
   showPlecsResults(data) {
-    // 保存仿真结果
     this.plecsResults = data;
 
-    // 更新 UI
-    document.getElementById('plecs-Irms').textContent = data.Irms.toFixed(3);
-    document.getElementById('plecs-Ipeak').textContent = data.Ipeak.toFixed(3);
-    document.getElementById('plecs-time').textContent = data.simulation_time_sec.toFixed(2);
+    // ZVS 状态分析
+    if (data.zvsStatus) {
+      const hNames = ['H1', 'H2', 'H3', 'H4'];
+      hNames.forEach((h, idx) => {
+        const elem = document.getElementById(`zvs-${h}`);
+        if (elem && data.zvsStatus[idx]) {
+          elem.textContent = data.zvsStatus[idx].status || '-';
+          if (data.zvsStatus[idx].status.includes('OK')) {
+            elem.style.color = '#16a34a';
+          } else if (data.zvsStatus[idx].status.includes('WARNING')) {
+            elem.style.color = '#ca8a04';
+          } else if (data.zvsStatus[idx].status.includes('No Switching')) {
+            elem.style.color = '#6b7280';
+          } else {
+            elem.style.color = '#dc2626';
+          }
+        }
+      });
+    }
+
+    // 开关管详细参数 (I_off 和 I_RMS)
+    if (data.switchDetails) {
+      const hNames = ['H1', 'H2', 'H3', 'H4'];
+      hNames.forEach((h, idx) => {
+        const sw = data.switchDetails[idx];
+        if (!sw) return;
+
+        const ioffElem = document.getElementById(`sw-${h}-Ioff`);
+        if (ioffElem && sw.I_off !== undefined) {
+          ioffElem.textContent = sw.I_off.toFixed(4);
+        }
+
+        const irmsElem = document.getElementById(`sw-${h}-Irms`);
+        if (irmsElem && sw.I_rms !== undefined) {
+          irmsElem.textContent = sw.I_rms.toFixed(4);
+        }
+      });
+    }
+
+    // 谐振腔参数 - 按照 MATLAB 代码格式显示 "RMS / Max / Min"
+    if (data.resonantCheck) {
+      // 注意：HTML ID 使用 ILrp 而不是 I_Lrp（无下划线）
+      const resonantIds = ['VCrp', 'ILrp', 'ILm', 'VCrs', 'ILrs'];
+      resonantIds.forEach((id, idx) => {
+        const res = data.resonantCheck[idx];
+        if (!res) return;
+
+        const elem = document.getElementById(`res-${id}`);
+        if (elem) {
+          const rms = (res.rms != null) ? Number(res.rms).toFixed(4) : '-';
+          const max = (res.max != null) ? Number(res.max).toFixed(4) : '-';
+          const min = (res.min != null) ? Number(res.min).toFixed(4) : '-';
+          elem.textContent = `${rms} / ${max} / ${min}`;
+        }
+      });
+    }
 
     // 显示结果面板
     document.getElementById('plecs-results').style.display = 'block';
     document.getElementById('plecs-results').scrollIntoView({ behavior: 'smooth' });
   },
 
-  /**
-   * 对比设计值和仿真值
-   */
-  compareResults() {
-    if (!this.currentResults || !this.plecsResults) {
-      this.showError('请先执行计算和仿真');
-      return;
-    }
 
-    const { dsn, act } = this.currentResults;
-    const { Irms, Ipeak } = this.plecsResults;
-
-    // 计算设计值（估算）
-    const I_design = dsn.Irpk / Math.sqrt(2); // 设计值有效值
-
-    // 对比
-    const diff = Irms - I_design;
-    const diffPct = (diff / I_design) * 100;
-
-    const comparison = `
-📊 设计值 vs 仿真值对比
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-谐振电流有效值 Irms:
-  设计估算值：${I_design.toFixed(3)} A
-  PLECS 仿真值：${Irms.toFixed(3)} A
-  偏差：${diff > 0 ? '+' : ''}${diff.toFixed(3)} A (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(1)}%)
-
-谐振电流峰值 Ipeak:
-  设计估算值：${dsn.Irpk.toFixed(3)} A
-  PLECS 仿真值：${Ipeak.toFixed(3)} A
-  偏差：${Ipeak - dsn.Irpk > 0 ? '+' : ''}${(Ipeak - dsn.Irpk).toFixed(3)} A
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${Math.abs(diffPct) < 10 ? '✅ 仿真结果与设计值吻合良好！' : '⚠️ 偏差较大，请检查模型参数'}
-
-建议：
-- 如偏差>10%，检查 Lr、Cr、Lm 参数设置
-- 确认变压器匝比 Np:Ns 正确
-- 检查负载电阻 Rload 计算
-`.trim();
-
-    alert(comparison);
-  },
 
   /**
    * 显示信息提示
