@@ -292,7 +292,7 @@ function write_json(filename, data)
             sw = data.switchDetails{i};
             fprintf(fid, '    {\n');
             fprintf(fid, '      "I_off": %.6f,\n', sw.I_off);
-            fprintf(fid, '      "I_rms": %.6f,\n', sw.I_rms);
+            fprintf(fid, '      "I_rms": %.6f\n', sw.I_rms);
             fprintf(fid, '    }');
             if i < length(data.switchDetails)
                 fprintf(fid, ',\n');
