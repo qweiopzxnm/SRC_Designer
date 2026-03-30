@@ -33,8 +33,20 @@ function simulate_plecs_direct()
         
         % 4. 运行仿真
         fprintf('\nRunning simulation...\n');
+        opts.ModelVars = struct(...
+            'Vin',   params.Vin, ...
+            'Vref',  params.Vref, ...
+            'Po',    params.Po, ...
+            'Lr',    params.Lr, ...
+            'Crp',   params.Crp, ...
+            'Crs',   params.Crs, ...
+            'Lm',    params.Lm, ...
+            'Np',    params.Np, ...
+            'Ns',    params.Ns, ...
+            'Rload', params.Rload ...
+        );
         tic;
-        data = plecs('simulate');
+        data = plecs('simulate', opts);
         sim_time = toc;
         fprintf('Simulation completed in %.2f seconds\n', sim_time);
         
@@ -78,13 +90,12 @@ function simulate_plecs_direct()
         % 从 LogicCheck 提取输出电压（假设第 1 个信号是 Vo）
         Vo = steadyState.ResonantCheck(1, :);
         Vo_avg = mean(Vo);
-        Vo_ripple = (max(Vo) - min(Vo)) / Vo_avg * 100;  % 纹波百分比
         
         fprintf('Key metrics:\n');
         fprintf('  Irms = %.3f A\n', Irms);
         fprintf('  Ipeak = %.3f A\n', Ipeak);
         fprintf('  Vo_avg = %.1f V\n', Vo_avg);
-        fprintf('  Vo_ripple = %.2f%%\n', Vo_ripple);
+
         
         % 8. ResonantCheck 参数计算 (5 个信号)
         fprintf('\n================== Resonant Check (稳态) ==================\n');
@@ -152,22 +163,15 @@ function simulate_plecs_direct()
             % --- c) 电流有效值 ---
             i_rms = sqrt(mean(i_sw.^2));
             
-            % --- Vds 最大/最小值 ---
-            vds_max = max(vds);
-            vds_min = min(vds);
-            
             switchDetails{k} = struct(...
                 'I_off', i_off_avg, ...
-                'I_rms', i_rms, ...
-                'Vds_max', vds_max, ...
-                'Vds_min', vds_min);
+                'I_rms', i_rms);
             
             % --- 打印结果 ---
             fprintf('开关管 %s:\n', hNames{k});
             fprintf(' - %s\n', zvsStatus{k}.status);
             fprintf(' - I_%s Off (关断瞬间电流): %.4f A\n', hNames{k}, i_off_avg);
             fprintf(' - I_%s RMS (全周期有效值): %.4f A\n', hNames{k}, i_rms);
-            fprintf(' - Vds Max: %.2f V, Min: %.2f V\n', vds_max, vds_min);
             fprintf('----------------------------------------------------------\n');
         end
         
@@ -177,7 +181,6 @@ function simulate_plecs_direct()
         result.Irms = Irms;
         result.Ipeak = Ipeak;
         result.Vo_avg = Vo_avg;
-        result.Vo_ripple_pct = Vo_ripple;
         result.steady_state_points = length(steadyState.Time);
         result.timestamp = char(datetime('now'));
         
@@ -257,9 +260,6 @@ function write_json(filename, data)
     if isfield(data, 'Vo_avg')
         fprintf(fid, '  "Vo_avg": %.2f,\n', data.Vo_avg);
     end
-    if isfield(data, 'Vo_ripple_pct')
-        fprintf(fid, '  "Vo_ripple_pct": %.4f,\n', data.Vo_ripple_pct);
-    end
     if isfield(data, 'simulation_time_sec')
         fprintf(fid, '  "simulation_time_sec": %.2f,\n', data.simulation_time_sec);
     end
@@ -293,8 +293,6 @@ function write_json(filename, data)
             fprintf(fid, '    {\n');
             fprintf(fid, '      "I_off": %.6f,\n', sw.I_off);
             fprintf(fid, '      "I_rms": %.6f,\n', sw.I_rms);
-            fprintf(fid, '      "Vds_max": %.2f,\n', sw.Vds_max);
-            fprintf(fid, '      "Vds_min": %.2f\n', sw.Vds_min);
             fprintf(fid, '    }');
             if i < length(data.switchDetails)
                 fprintf(fid, ',\n');
