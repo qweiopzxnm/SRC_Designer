@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLC 验证工具 - 多工况仿真</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* 验证页特有样式 */
+    .frozen-params-panel {
+      background: #f0fdf4;
+      border: 1px solid #16a34a;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .frozen-params-panel h3 {
+      color: #166534;
+      margin-top: 0;
+    }
+    .frozen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .frozen-item {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      border-left: 3px solid #16a34a;
+    }
+    .frozen-item .label {
+      font-size: 12px;
+      color: #6b7280;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .frozen-item .value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #166534;
+    }
+    .frozen-item .unit {
+      font-size: 12px;
+      color: #6b7280;
+      margin-left: 4px;
+    }
+    
+    /* 工况列表 */
+    .conditions-list {
+      margin: 20px 0;
+    }
+    .condition-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 1fr 1fr 1fr 80px;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .condition-row.header {
+      background: #e2e8f0;
+      font-weight: 600;
+    }
+    .condition-row input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .condition-row .row-label {
+      font-size: 14px;
+      color: #475569;
+    }
+    .btn-remove {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #dc2626;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-remove:hover {
+      background: #fecaca;
+    }
+    
+    /* 操作按钮区 */
+    .verify-actions {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    /* 仿真状态 */
+    .simulation-status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+    .simulation-status.running {
+      display: block;
+      background: #eff6ff;
+      border: 1px solid #2563eb;
+      color: #1e40af;
+    }
+    .simulation-status.success {
+      display: block;
+      background: #f0fdf4;
+      border: 1px solid #16a34a;
+      color: #166534;
+    }
+    .simulation-status.error {
+      display: block;
+      background: #fef2f2;
+      border: 1px solid #dc2626;
+      color: #991b1b;
+    }
+    
+    /* 结果表格 */
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 13px;
+    }
+    .results-table th,
+    .results-table td {
+      border: 1px solid #e2e8f0;
+      padding: 10px;
+      text-align: center;
+    }
+    .results-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+    }
+    .results-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .results-table tr:hover {
+      background: #f1f5f9;
+    }
+    .zvs-ok { color: #16a34a; font-weight: 600; }
+    .zvs-warning { color: #ca8a04; font-weight: 600; }
+    .zvs-fail { color: #dc2626; font-weight: 600; }
+    
+    /* 返回按钮 */
+    .back-to-design {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    .back-to-design:hover {
+      background: #e2e8f0;
+    }
+    
+    /* 进度条 */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <button class="back-to-design" onclick="window.location.href='index.html'">← 返回设计页</button>
+  
+  <div class="container">
+    <header>
+      <h1>🔍 LLC 验证工具</h1>
+      <p class="subtitle">多工况仿真验证</p>
+    </header>
+
+    <main>
+      <!-- 冻结参数面板 -->
+      <section class="panel frozen-params-panel">
+        <h2>❄️ 冻结的谐振参数</h2>
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">
+          以下参数从设计页同步，点击"更新冻结参数"可重新获取
+        </p>
+        <div class="frozen-grid">
+          <div class="frozen-item">
+            <span class="label">原边谐振电容 Cr_p</span>
+            <span class="value" id="frozen-Crp">-</span>
+            <span class="unit">nF</span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">副边谐振电容 Cr_s</span>
+            <span class="value" id="frozen-Crs">-</span>
+            <span class="unit">nF</span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">谐振电感 Lr</span>
+            <span class="value" id="frozen-Lr">-</span>
+            <span class="unit">μH</span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">励磁电感 Lm</span>
+            <span class="value" id="frozen-Lm">-</span>
+            <span class="unit">μH</span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">变压器变比 N</span>
+            <span class="value" id="frozen-Np">-</span>
+            <span class="unit">:</span>
+            <span class="value" id="frozen-Ns">-</span>
+          </div>
+        </div>
+        <div class="button-group" style="margin-top: 15px;">
+          <button id="btn-sync-frozen" class="btn btn-primary">🔄 更新冻结参数</button>
+          <button id="btn-lock-params" class="btn btn-outline">🔒 锁定参数</button>
+        </div>
+      </section>
+
+      <!-- 工况输入面板 -->
+      <section class="panel input-panel">
+        <h2>⚙️ 仿真工况设置</h2>
+        
+        <div class="conditions-list">
+          <div class="condition-row header">
+            <div class="row-label">工况 #</div>
+            <div class="row-label">输入电压 Vin (V)</div>
+            <div class="row-label">输出电压 Vref (V)</div>
+            <div class="row-label">输出功率 Po (W)</div>
+            <div class="row-label">负载 Rload (Ω)</div>
+            <div class="row-label">操作</div>
+          </div>
+          <div id="conditions-container">
+            <!-- 动态添加的工况行 -->
+          </div>
+        </div>
+
+        <div class="verify-actions">
+          <button id="btn-add-condition" class="btn btn-primary">➕ 加工况</button>
+          <button id="btn-save-conditions" class="btn btn-outline">💾 保存工况</button>
+          <button id="btn-run-simulation" class="btn btn-primary">▶️ 开始仿真</button>
+          <button id="btn-clear-all" class="btn btn-outline">🗑️ 清空全部</button>
+        </div>
+
+        <!-- 仿真状态 -->
+        <div id="simulation-status" class="simulation-status">
+          <div id="status-message"></div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 结果面板 -->
+      <section class="panel results-panel" id="results-panel" style="display: none;">
+        <h2>📊 仿真结果</h2>
+        
+        <div class="button-group" style="margin-bottom: 20px;">
+          <button id="btn-export-json" class="btn btn-outline">📥 导出 JSON</button>
+          <button id="btn-export-csv" class="btn btn-outline">📥 导出 CSV</button>
+          <button id="btn-clear-results" class="btn btn-outline">🗑️ 清除结果</button>
+        </div>
+
+        <!-- 结果表格 -->
+        <div id="results-table-container">
+          <!-- 动态生成的结果表格 -->
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>LLC 验证工具 - 多工况仿真</p>
+    </footer>
+  </div>
+
+  <script src="src-calculator.js"></script>
+  <script src="verify.js"></script>
+</body>
+</html>

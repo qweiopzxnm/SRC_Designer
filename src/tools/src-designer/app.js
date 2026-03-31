@@ -438,6 +438,24 @@ const LLCDesigner = {
       Lm: document.getElementById('Lm').value
     };
     localStorage.setItem('llc-designer-params', JSON.stringify(params));
+    
+    // 同时保存计算结果，供验证页使用
+    if (this.currentResults) {
+      const { dsn, act } = this.currentResults;
+      const results = {
+        Cr_p: act.Cr_p,
+        Cr_s: act.Cr_s,
+        Lr: act.Lr_p,
+        Lm: act.Lm,
+        Lm_uH: act.Lm_uH,
+        Np: dsn.Np,
+        Ns: dsn.Ns,
+        fr: act.fr,
+        Q: act.Q,
+        k: act.k
+      };
+      localStorage.setItem('llc-designer-results', JSON.stringify(results));
+    }
   },
 
   /**

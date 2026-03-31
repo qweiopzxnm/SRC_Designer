@@ -4,15 +4,21 @@
 
 ```
 src-designer/
-├── index.html              # 主界面（HTML）
-├── app.js                  # 界面交互逻辑
+├── index.html              # 设计页 - 单点设计计算
+├── verify.html             # 验证页 - 多工况仿真验证（新增）
+├── app.js                  # 设计页交互逻辑
+├── verify.js               # 验证页交互逻辑（新增）
 ├── src-calculator.js       # LLC 计算算法
 ├── styles.css              # 样式
-├── simulate-direct.bat     # 运行仿真（双击）
-├── simulate_plecs_direct.m # MATLAB 仿真脚本
+├── simulate-direct.bat     # 单工况仿真（双击）
+├── verify-sim.bat          # 多工况仿真（新增）
+├── simulate_plecs_direct.m # 单工况 MATLAB 脚本
+├── simulate_plecs_direct_multi.m  # 多工况 MATLAB 脚本（新增）
 ├── SRC_backup.plecs        # PLECS 模型（需自备）
-├── plecs_input.json        # 仿真输入（自动生成）
-└── plecs_output.json       # 仿真输出（自动生成）
+├── plecs_input.json        # 单工况输入（自动生成）
+├── plecs_output.json       # 单工况输出（自动生成）
+├── verify_input.json       # 多工况输入（从验证页导出）
+└── verify_output.json      # 多工况输出（自动生成）
 ```
 
 ## 核心文件功能
@@ -45,12 +51,44 @@ src-designer/
 - 调用 MATLAB 运行仿真
 - 显示简单结果提示
 
+### 6. verify.html (新增)
+- 冻结参数显示区（从设计页同步的谐振参数）
+- 工况列表（动态添加/删除）
+- 仿真结果表格（多工况汇总）
+- 按钮：更新冻结参数、加工况、保存、开始仿真、导出 JSON/CSV
+
+### 7. verify.js (新增)
+- `syncFrozenParams()` - 从 localStorage 同步设计页参数
+- `addCondition()` / `removeCondition()` - 管理工况列表
+- `runSimulation()` - 导出 verify_input.json 并引导用户仿真
+- `loadSimulationResults()` - 读取 verify_output.json
+- `displayResults()` - 显示多工况结果表格
+- `exportJSON()` / `exportCSV()` - 导出结果
+
+### 8. simulate_plecs_direct_multi.m (新增)
+- 读取 verify_input.json（包含 frozenParams 和 conditions 数组）
+- 循环执行多工况仿真
+- 汇总所有工况结果到 verify_output.json
+- 支持 ZVS 状态判定、开关管参数、谐振腔参数提取
+
 ## 使用流程
+
+### 设计页 (index.html) - 单点设计
 
 1. **计算** → 填写参数 → 点击"🔧 计算"
 2. **导出** → 点击"🔌 导出 PLECS 参数" → 保存 plecs_input.json
 3. **仿真** → 双击 simulate-direct.bat → 等待完成
 4. **查看** → 点击"▶️ 运行 PLECS 仿真" → 选择 plecs_output.json
+
+### 验证页 (verify.html) - 多工况验证
+
+1. **同步参数** → 点击"🔄 更新冻结参数"（从设计页同步 Cr_p, Cr_s, Lr, Lm, Np, Ns）
+2. **添加工况** → 点击"➕ 加工况"添加多个仿真工况（Vin, Vref, Po, Rload）
+3. **保存工况** → 点击"💾 保存工况"
+4. **导出输入** → 点击"▶️ 开始仿真" → 保存 verify_input.json 到 src-designer 目录
+5. **运行仿真** → 双击 verify-sim.bat → 等待 MATLAB 完成所有工况
+6. **导入结果** → 选择 verify_output.json → 查看汇总表格
+7. **导出结果** → 可导出 JSON 或 CSV 格式
 
 ## 修改指南
 
