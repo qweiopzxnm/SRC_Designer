@@ -119,6 +119,11 @@ function simulate_plecs_direct_multi()
         write_verify_json('verify_output.json', result);
         fprintf('\nSUCCESS - Results saved to verify_output.json\n');
         
+        % --- 新增：保存到 Excel ---
+        excel_name = 'Simulation_Report.xlsx';
+        save_results_to_excel(excel_name, result);
+        fprintf('\nSUCCESS - All processes completed\n');
+        
     catch err
         fprintf('\nFAILED: %s\n', err.message);
         error_result.success = false;
@@ -239,6 +244,7 @@ function write_verify_json(filename, data)
     
     fprintf(fid, '}\n');
     fclose(fid);
+    
 end
 % 提取数字 (通用)
 function val = extract_num(str, key)
@@ -270,4 +276,82 @@ end
 function val = extract_num_simple(line, key)
     res = regexp(line, [key '":\s*([\d.-]+)'], 'tokens');
     if ~isempty(res), val = str2double(res{1}{1}); else, val = 0; end
+end
+
+function save_results_to_excel(filename, data)
+    try
+        % 1. 准备设计参数数据 (frozenParams)
+        fp = data.frozenParams;
+        paramHeader = {'Design Parameters', 'Value', 'Unit'};
+        paramData = {
+            'Cr_p (Primary Resonant Cap)', fp.Cr_p(1), 'nF';
+            'Cr_s (Secondary Resonant Cap)', fp.Cr_s(1), 'nF';
+            'Lr (Resonant Inductor)', fp.Lr(1), 'uH';
+            'Lm (Magnetizing Inductor)', fp.Lm(1), 'uH';
+            'Np (Primary Turns)', fp.Np(1), 'turns';
+            'Ns (Secondary Turns)', fp.Ns(1), 'turns'
+        };
+
+        % 2. 准备详细仿真结果 (打平嵌套结构)
+        conds = data.conditions;
+        numCond = length(conds);
+        
+        % 预定义表头
+        headers = {'ID', 'Vin_V', 'Vref_V', 'Po_W', 'Rload_Ohm', 'Frequency_kHz', 'ZVS_All_OK', 'SimTime_s'};
+        % 动态添加开关管表头 (H1-H4)
+        for k = 1:4
+            headers = [headers, {sprintf('H%d_Status',k), sprintf('H%d_Ioff_A',k), sprintf('H%d_Irms_A',k)}];
+        end
+        % 动态添加谐振腔表头 (5个信号)
+        resNames = {'VCrp', 'ILrp', 'ILm', 'VCrs', 'ILrs'};
+        for k = 1:5
+            headers = [headers, {sprintf('%s_RMS',resNames{k}), sprintf('%s_Max',resNames{k}), sprintf('%s_Min',resNames{k})}];
+        end
+
+        % 初始化数据矩阵 (Cell 格式)
+        tableData = cell(numCond, length(headers));
+
+        for i = 1:numCond
+            c = conds{i}(1); % 强制标量引用
+            
+            % 基础数据
+            row = {c.id(1), c.Vin(1), c.Vref(1), c.Po(1), c.Rload(1), c.fre_khz(1), c.zvsAllOk(1), c.sim_time(1)};
+            
+            % 展开开关管数据 (ZVS + Details)
+            for k = 1:4
+                zvs = c.zvsStatus{k}(1);
+                sw = c.switchDetails{k}(1);
+                row = [row, {zvs.status, sw.I_off, sw.I_rms}];
+            end
+            
+            % 展开谐振腔数据
+            for k = 1:5
+                res = c.resonantCheck{k}(1);
+                row = [row, {res.rms, res.max, res.min}];
+            end
+            
+            tableData(i, :) = row;
+        end
+
+        % 3. 写入 Excel
+        % 写入参数区
+        writecell(paramHeader, filename, 'Range', 'A1');
+        writecell(paramData, filename, 'Range', 'A2');
+
+        % 间隔两行写入结果区
+        resultStartLine = size(paramData, 1) + 4;
+        writecell({'Simulation Detailed Results'}, filename, 'Range', ['A' num2str(resultStartLine-1)]);
+        
+        % 写入表头
+        writecell(headers, filename, 'Range', ['A' num2str(resultStartLine)]);
+        
+        % 写入数据内容
+        writecell(tableData, filename, 'Range', ['A' num2str(resultStartLine+1)]);
+
+        fprintf('[SUCCESS] Detailed Excel report generated: %s\n', filename);
+        
+    catch ME
+        fprintf('[WARNING] Excel report failed: %s\n', ME.message);
+        fprintf('请检查是否未关闭 Excel 文件或变量名不匹配。\n');
+    end
 end
