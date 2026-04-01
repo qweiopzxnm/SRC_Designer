@@ -16,9 +16,6 @@ const LLCVerifier = {
   // 工况列表
   conditions: [],
   
-  // 仿真结果
-  simulationResults: null,
-  
   // 工况计数器
   conditionCounter: 0,
 
@@ -28,7 +25,7 @@ const LLCVerifier = {
   init() {
     this.bindEvents();
     this.syncFrozenParams();
-    this.addCondition(); // 默认添加一个工况
+    this.addCondition();
   },
 
   /**
@@ -38,12 +35,10 @@ const LLCVerifier = {
     document.getElementById('btn-sync-frozen').addEventListener('click', () => this.syncFrozenParams());
     document.getElementById('btn-lock-params').addEventListener('click', () => this.lockParams());
     document.getElementById('btn-add-condition').addEventListener('click', () => this.addCondition());
-    document.getElementById('btn-save-conditions').addEventListener('click', () => this.saveConditions());
+    document.getElementById('btn-save-config').addEventListener('click', () => this.saveConfig());
+    document.getElementById('btn-load-config').addEventListener('click', () => this.loadConfig());
     document.getElementById('btn-run-simulation').addEventListener('click', () => this.runSimulation());
     document.getElementById('btn-clear-all').addEventListener('click', () => this.clearAll());
-    document.getElementById('btn-export-json').addEventListener('click', () => this.exportJSON());
-    document.getElementById('btn-export-csv').addEventListener('click', () => this.exportCSV());
-    document.getElementById('btn-clear-results').addEventListener('click', () => this.clearResults());
   },
 
   /**
@@ -51,23 +46,19 @@ const LLCVerifier = {
    */
   syncFrozenParams() {
     try {
-      // 优先尝试从 localStorage 获取设计页的计算结果（直接读取，无需重新计算）
       const savedResults = localStorage.getItem('llc-designer-results');
       
       if (savedResults) {
         const results = JSON.parse(savedResults);
-        
-        // 直接使用保存的计算结果
         this.frozenParams = {
-          Cr_p: results.Cr_p * 1e9, // nF
-          Cr_s: results.Cr_s * 1e9, // nF
-          Lr: results.Lr * 1e6,     // μH
-          Lm: results.Lm_uH,        // μH
+          Cr_p: results.Cr_p * 1e9,
+          Cr_s: results.Cr_s * 1e9,
+          Lr: results.Lr * 1e6,
+          Lm: results.Lm_uH,
           Np: results.Np,
           Ns: results.Ns
         };
         
-        // 验证参数是否有效
         if (this.frozenParams.Lm && typeof this.frozenParams.Lm === 'number' && isFinite(this.frozenParams.Lm)) {
           this.updateFrozenDisplay();
           this.showStatus('✅ 冻结参数已从设计页同步', 'success');
@@ -75,12 +66,9 @@ const LLCVerifier = {
         }
       }
       
-      // 如果没有保存的计算结果，尝试从输入参数重新计算
       const savedParams = localStorage.getItem('llc-designer-params');
       if (savedParams && typeof LLCCalculator !== 'undefined') {
         const params = JSON.parse(savedParams);
-        
-        // 确保参数是数字类型
         const C_unit = parseFloat(params.C_unit) || 47;
         const L_step = parseFloat(params.L_step) || 1;
         const Lm = parseFloat(params.Lm) || 400;
@@ -89,10 +77,10 @@ const LLCVerifier = {
         const act = LLCCalculator.calculateActpara(dsn, C_unit, L_step, Lm);
         
         this.frozenParams = {
-          Cr_p: act.Cr_p * 1e9, // nF
-          Cr_s: act.Cr_s * 1e9, // nF
-          Lr: act.Lr_p * 1e6,   // μH
-          Lm: act.Lm_uH,        // μH
+          Cr_p: act.Cr_p * 1e9,
+          Cr_s: act.Cr_s * 1e9,
+          Lr: act.Lr_p * 1e6,
+          Lm: act.Lm_uH,
           Np: dsn.Np,
           Ns: dsn.Ns
         };
@@ -102,7 +90,6 @@ const LLCVerifier = {
         return;
       }
       
-      // 如果都没有，使用默认值
       this.frozenParams = {
         Cr_p: 47.0,
         Cr_s: 47.0,
@@ -113,7 +100,7 @@ const LLCVerifier = {
       };
       
       this.updateFrozenDisplay();
-      this.showStatus('⚠️ 未找到设计页参数，使用默认值。请先在设计页计算并保存。', 'error');
+      this.showStatus('⚠️ 未找到设计页参数，使用默认值', 'error');
       
     } catch (error) {
       console.error('同步参数失败:', error);
@@ -134,10 +121,10 @@ const LLCVerifier = {
   },
 
   /**
-   * 锁定参数（防止意外修改）
+   * 锁定参数
    */
   lockParams() {
-    const confirmed = confirm('确定要锁定谐振参数吗？锁定后将无法更新，直到解锁。');
+    const confirmed = confirm('确定要锁定谐振参数吗？');
     if (confirmed) {
       document.getElementById('btn-sync-frozen').disabled = true;
       document.getElementById('btn-lock-params').textContent = '🔓 解锁参数';
@@ -168,26 +155,19 @@ const LLCVerifier = {
     row.className = 'condition-row';
     row.dataset.conditionId = conditionId;
     
-    // 默认值
-    const defaults = {
-      Vin: 810,
-      Vref: 680,
-      Po: 11000,
-      Rload: 42
-    };
+    const defaults = { Vin: 810, Vref: 680, Po: 11000, Rload: 42 };
     
     row.innerHTML = `
       <div class="row-label">工况 #${conditionId}</div>
-      <div><input type="number" id="vin-${conditionId}" value="${defaults.Vin}" step="10" placeholder="输入电压"></div>
-      <div><input type="number" id="vref-${conditionId}" value="${defaults.Vref}" step="1" placeholder="输出电压"></div>
-      <div><input type="number" id="po-${conditionId}" value="${defaults.Po}" step="100" placeholder="输出功率"></div>
-      <div><input type="number" id="rload-${conditionId}" value="${defaults.Rload}" step="1" placeholder="负载电阻"></div>
+      <div><input type="number" id="vin-${conditionId}" value="${defaults.Vin}" step="10"></div>
+      <div><input type="number" id="vref-${conditionId}" value="${defaults.Vref}" step="1"></div>
+      <div><input type="number" id="po-${conditionId}" value="${defaults.Po}" step="100"></div>
+      <div><input type="number" id="rload-${conditionId}" value="${defaults.Rload}" step="1"></div>
       <div><button class="btn-remove" onclick="LLCVerifier.removeCondition(${conditionId})">删除</button></div>
     `;
     
     container.appendChild(row);
     
-    // 自动计算 Rload = Vref² / Po
     const vrefInput = document.getElementById(`vref-${conditionId}`);
     const poInput = document.getElementById(`po-${conditionId}`);
     const rloadInput = document.getElementById(`rload-${conditionId}`);
@@ -195,9 +175,7 @@ const LLCVerifier = {
     const calcRload = () => {
       const vref = parseFloat(vrefInput.value) || defaults.Vref;
       const po = parseFloat(poInput.value) || defaults.Po;
-      if (po > 0) {
-        rloadInput.value = (vref * vref / po).toFixed(2);
-      }
+      if (po > 0) rloadInput.value = (vref * vref / po).toFixed(2);
     };
     
     vrefInput.addEventListener('input', calcRload);
@@ -222,23 +200,18 @@ const LLCVerifier = {
     const rows = document.querySelectorAll('.condition-row[data-condition-id]');
     rows.forEach((row, index) => {
       const label = row.querySelector('.row-label');
-      if (label) {
-        label.textContent = `工况 #${index + 1}`;
-      }
+      if (label) label.textContent = `工况 #${index + 1}`;
     });
   },
 
   /**
-   * 保存工况并下载 verify_input.json
+   * 收集当前工况数据
    */
-  saveConditions(downloadFile = true) {
+  collectConditions() {
     this.conditions = [];
     const rows = document.querySelectorAll('.condition-row[data-condition-id]');
     
-    if (rows.length === 0) {
-      this.showStatus('⚠️ 请至少添加一个工况', 'error');
-      return false;
-    }
+    if (rows.length === 0) return false;
     
     rows.forEach((row, index) => {
       const id = row.dataset.conditionId;
@@ -250,7 +223,6 @@ const LLCVerifier = {
         Rload: parseFloat(document.getElementById(`rload-${id}`).value) || 0
       };
       
-      // 验证
       if (condition.Vin <= 0 || condition.Vref <= 0 || condition.Po <= 0) {
         this.showStatus(`⚠️ 工况 #${condition.id} 参数无效`, 'error');
         return false;
@@ -259,110 +231,47 @@ const LLCVerifier = {
       this.conditions.push(condition);
     });
     
-    // 保存到 localStorage
-    localStorage.setItem('llc-verify-conditions', JSON.stringify(this.conditions));
-    
-    // 如果需要下载文件，生成 verify_input.json
-    if (downloadFile) {
-      this.downloadVerifyInput();
-    } else {
-      this.showStatus(`✅ 已保存 ${this.conditions.length} 个工况`, 'success');
-    }
-    
     return true;
   },
 
   /**
-   * 下载 verify_input.json 文件
+   * 保存配置
    */
-  downloadVerifyInput() {
+  saveConfig() {
+    if (!this.collectConditions()) {
+      this.showStatus('⚠️ 请至少添加一个有效工况', 'error');
+      return;
+    }
+    
     try {
-      // 构建仿真输入数据
-      const simulationData = {
+      const configData = {
         frozenParams: this.frozenParams,
         conditions: this.conditions,
         timestamp: new Date().toISOString()
       };
       
-      const jsonStr = JSON.stringify(simulationData, null, 2);
+      const jsonStr = JSON.stringify(configData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'verify_input.json';
+      a.download = 'llc_verify_config.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      this.showStatus(`✅ 已导出 verify_input.json (${this.conditions.length} 个工况)`, 'success');
+      this.showStatus(`✅ 配置已保存 (${this.conditions.length} 个工况)`, 'success');
     } catch (error) {
-      console.error('导出失败:', error);
-      this.showStatus('❌ 导出失败：' + error.message, 'error');
+      this.showStatus('❌ 保存失败：' + error.message, 'error');
     }
   },
 
   /**
-   * 运行仿真
+   * 导入配置
    */
-  async runSimulation() {
-    // 先保存工况（不下载文件，因为用户可能已经通过"保存工况"按钮下载了）
-    if (!this.saveConditions(false)) {
-      return;
-    }
-    
-    // 确认冻结参数
-    if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
-      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"更新冻结参数"从设计页同步。');
-      if (!confirmed) return;
-    }
-    
-    const statusDiv = document.getElementById('simulation-status');
-    const statusMessage = document.getElementById('status-message');
-    const progressFill = document.getElementById('progress-fill');
-    
-    statusDiv.className = 'simulation-status running';
-    statusMessage.textContent = '⏳ 正在准备仿真数据...';
-    progressFill.style.width = '10%';
-    
-    try {
-      progressFill.style.width = '30%';
-      statusMessage.textContent = '📁 仿真数据已准备就绪';
-      
-      // 提示用户
-      const savePrompt = confirm(
-        '📋 仿真准备就绪\n\n' +
-        `工况数量：${this.conditions.length}\n` +
-        `冻结参数：Lm=${this.frozenParams.Lm.toFixed(1)}μH, Lr=${this.frozenParams.Lr.toFixed(1)}μH, Np:Ns=${this.frozenParams.Np}:${this.frozenParams.Ns}\n\n` +
-        '请确认：\n' +
-        '✓ 已点击"保存工况"按钮导出 verify_input.json\n' +
-        '✓ 已将 verify_input.json 放到 src-designer 目录\n\n' +
-        '点击"确定"后请选择 verify_output.json 文件导入结果'
-      );
-      
-      if (!savePrompt) {
-        statusDiv.className = 'simulation-status';
-        return;
-      }
-      
-      progressFill.style.width = '50%';
-      statusMessage.textContent = '⏳ 请选择仿真结果文件...';
-      
-      // 加载仿真结果
-      this.loadSimulationResults();
-      
-    } catch (error) {
-      console.error('仿真错误:', error);
-      statusDiv.className = 'simulation-status error';
-      statusMessage.textContent = '❌ 仿真失败：' + error.message;
-    }
-  },
-
-  /**
-   * 加载仿真结果
-   */
-  loadSimulationResults() {
+  loadConfig() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -371,41 +280,42 @@ const LLCVerifier = {
       const file = e.target.files[0];
       if (!file) return;
       
-      const statusDiv = document.getElementById('simulation-status');
-      const statusMessage = document.getElementById('status-message');
-      const progressFill = document.getElementById('progress-fill');
-      
-      progressFill.style.width = '70%';
-      statusMessage.textContent = '📖 读取仿真结果...';
-      
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          const result = JSON.parse(event.target.result);
+          const config = JSON.parse(event.target.result);
           
-          if (!result.success) {
-            throw new Error(result.error || '仿真失败');
+          if (!config.conditions || !Array.isArray(config.conditions)) {
+            throw new Error('无效的配置文件格式');
           }
           
-          this.simulationResults = result;
-          this.displayResults();
+          document.getElementById('conditions-container').innerHTML = '';
+          this.conditionCounter = 0;
           
-          progressFill.style.width = '100%';
-          statusDiv.className = 'simulation-status success';
-          statusMessage.textContent = '✅ 仿真完成！共 ' + (result.conditions || []).length + ' 个工况';
+          if (config.frozenParams) {
+            this.frozenParams = config.frozenParams;
+            this.updateFrozenDisplay();
+          }
+          
+          config.conditions.forEach((cond) => {
+            this.addCondition();
+            const row = document.querySelector(`[data-condition-id="${this.conditionCounter}"]`);
+            if (row) {
+              document.getElementById(`vin-${this.conditionCounter}`).value = cond.Vin || 810;
+              document.getElementById(`vref-${this.conditionCounter}`).value = cond.Vref || 680;
+              document.getElementById(`po-${this.conditionCounter}`).value = cond.Po || 11000;
+              document.getElementById(`rload-${this.conditionCounter}`).value = cond.Rload || 42;
+            }
+          });
+          
+          this.showStatus(`✅ 已导入 ${config.conditions.length} 个工况`, 'success');
           
         } catch (error) {
-          console.error('结果读取错误:', error);
-          statusDiv.className = 'simulation-status error';
-          statusMessage.textContent = '❌ 读取失败：' + error.message;
+          this.showStatus('❌ 导入失败：' + error.message, 'error');
         }
       };
       
-      reader.onerror = () => {
-        statusDiv.className = 'simulation-status error';
-        statusMessage.textContent = '❌ 读取文件失败';
-      };
-      
+      reader.onerror = () => this.showStatus('❌ 读取文件失败', 'error');
       reader.readAsText(file);
     };
     
@@ -413,157 +323,59 @@ const LLCVerifier = {
   },
 
   /**
-   * 显示仿真结果
+   * 运行仿真（手动模式）
    */
-  displayResults() {
-    if (!this.simulationResults) return;
-    
-    const resultsPanel = document.getElementById('results-panel');
-    const container = document.getElementById('results-table-container');
-    
-    resultsPanel.style.display = 'block';
-    
-    // 构建结果表格
-    let html = '<h3>📊 多工况仿真结果汇总</h3>';
-    html += '<table class="results-table">';
-    
-    // 表头
-    html += '<thead><tr>';
-    html += '<th>工况</th>';
-    html += '<th>Vin (V)</th>';
-    html += '<th>Vref (V)</th>';
-    html += '<th>Po (W)</th>';
-    html += '<th>Vo_avg (V)</th>';
-    html += '<th>Irms (A)</th>';
-    html += '<th>Ipeak (A)</th>';
-    html += '<th>ZVS 状态</th>';
-    html += '<th>仿真时间 (s)</th>';
-    html += '</tr></thead>';
-    
-    // 数据行
-    html += '<tbody>';
-    
-    const conditions = this.simulationResults.conditions || [];
-    conditions.forEach((cond, idx) => {
-      const zvsOk = cond.zvsAllOk ? true : false;
-      const zvsClass = zvsOk ? 'zvs-ok' : 'zvs-warning';
-      const zvsText = zvsOk ? '✓ ZVS OK' : '⚠ ZVS 警告';
-      
-      html += '<tr>';
-      html += `<td>#${cond.id || idx + 1}</td>`;
-      html += `<td>${cond.Vin || '-'}</td>`;
-      html += `<td>${cond.Vref || '-'}</td>`;
-      html += `<td>${cond.Po || '-'}</td>`;
-      html += `<td>${cond.Vo_avg ? cond.Vo_avg.toFixed(1) : '-'}</td>`;
-      html += `<td>${cond.Irms ? cond.Irms.toFixed(3) : '-'}</td>`;
-      html += `<td>${cond.Ipeak ? cond.Ipeak.toFixed(3) : '-'}</td>`;
-      html += `<td class="${zvsClass}">${zvsText}</td>`;
-      html += `<td>${cond.sim_time ? cond.sim_time.toFixed(2) : '-'}</td>`;
-      html += '</tr>';
-    });
-    
-    html += '</tbody></table>';
-    
-    // 详细结果
-    html += '<h3 style="margin-top: 30px;">🔍 详细参数</h3>';
-    html += '<div style="font-size: 12px; color: #6b7280;">';
-    html += '<p>完整结果已保存至 verify_output.json，包含：</p>';
-    html += '<ul>';
-    html += '<li>各工况 ZVS 状态详情（H1-H4）</li>';
-    html += '<li>开关管电流参数（I_off, I_rms）</li>';
-    html += '<li>谐振腔参数（VCrp, I_Lrp, I_Lm, VCrs, I_Lrs）的 RMS/Max/Min</li>';
-    html += '</ul>';
-    html += '</div>';
-    
-    container.innerHTML = html;
-    
-    // 滚动到结果区
-    resultsPanel.scrollIntoView({ behavior: 'smooth' });
-  },
-
-  /**
-   * 导出 JSON
-   */
-  exportJSON() {
-    if (!this.simulationResults) {
-      this.showStatus('⚠️ 暂无仿真结果可导出', 'error');
+  runSimulation() {
+    if (!this.collectConditions()) {
+      this.showStatus('⚠️ 请至少添加一个有效工况', 'error');
       return;
     }
     
-    const jsonStr = JSON.stringify(this.simulationResults, null, 2);
+    if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
+      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"更新冻结参数"从设计页同步。');
+      if (!confirmed) return;
+    }
+    
+    // 生成 verify_input.json
+    const simulationData = {
+      frozenParams: this.frozenParams,
+      conditions: this.conditions,
+      timestamp: new Date().toISOString()
+    };
+    
+    const jsonStr = JSON.stringify(simulationData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'verify_output.json';
+    a.download = 'verify_input.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    this.showStatus('✅ JSON 已导出：verify_output.json', 'success');
-  },
-
-  /**
-   * 导出 CSV
-   */
-  exportCSV() {
-    if (!this.simulationResults) {
-      this.showStatus('⚠️ 暂无仿真结果可导出', 'error');
-      return;
-    }
-    
-    const conditions = this.simulationResults.conditions || [];
-    if (conditions.length === 0) {
-      this.showStatus('⚠️ 无工况数据', 'error');
-      return;
-    }
-    
-    // CSV 表头
-    let csv = 'Condition,Vin,Vref,Po,Rload,Vo_avg,Irms,Ipeak,ZVS_Status,Sim_Time\n';
-    
-    // CSV 数据
-    conditions.forEach((cond, idx) => {
-      const zvsStatus = cond.zvsAllOk ? 'OK' : 'WARNING';
-      csv += `${idx + 1},${cond.Vin || ''},${cond.Vref || ''},${cond.Po || ''},${cond.Rload || ''},`;
-      csv += `${cond.Vo_avg || ''},${cond.Irms || ''},${cond.Ipeak || ''},${zvsStatus},${cond.sim_time || ''}\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'verify_results.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    this.showStatus('✅ CSV 已导出：verify_results.csv', 'success');
-  },
-
-  /**
-   * 清除结果
-   */
-  clearResults() {
-    this.simulationResults = null;
-    document.getElementById('results-panel').style.display = 'none';
-    document.getElementById('results-table-container').innerHTML = '';
-    document.getElementById('simulation-status').className = 'simulation-status';
-    this.showStatus('🗑️ 结果已清除', 'success');
+    // 提示用户手动运行 bat
+    alert(
+      '✅ verify_input.json 已生成并下载\n\n' +
+      '请按以下步骤操作：\n' +
+      '1. 将 verify_input.json 移动到 src-designer 目录\n' +
+      '2. 双击运行 verify-sim.bat\n' +
+      '3. 等待仿真完成，Excel 文件将自动保存\n\n' +
+      '工作目录：/home/admin/.openclaw/workspace/src/tools/src-designer'
+    );
   },
 
   /**
    * 清空全部
    */
   clearAll() {
-    const confirmed = confirm('确定要清空所有工况吗？此操作不可恢复。');
+    const confirmed = confirm('确定要清空所有工况吗？');
     if (confirmed) {
       document.getElementById('conditions-container').innerHTML = '';
       this.conditionCounter = 0;
       this.conditions = [];
-      this.clearResults();
       this.addCondition();
+      this.showStatus('🗑️ 已清空', 'success');
     }
   },
 
@@ -571,7 +383,6 @@ const LLCVerifier = {
    * 显示状态消息
    */
   showStatus(message, type) {
-    // 移除旧消息
     const oldStatus = document.querySelector('.verify-status-message');
     if (oldStatus) oldStatus.remove();
     
@@ -587,12 +398,10 @@ const LLCVerifier = {
     const inputPanel = document.querySelector('.input-panel');
     inputPanel.insertBefore(statusDiv, inputPanel.querySelector('h2').nextSibling);
     
-    // 3 秒后自动移除
     setTimeout(() => statusDiv.remove(), 3000);
   }
 };
 
-// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
   LLCVerifier.init();
 });

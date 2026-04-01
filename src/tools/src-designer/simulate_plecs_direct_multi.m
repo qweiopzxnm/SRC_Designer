@@ -29,7 +29,7 @@ function simulate_plecs_direct_multi()
         
         for idx = 1:numConditions
             cond = conditions{idx};
-            fprintf('\nCondition #%d: Vin=%.1fV, Po=%.1fW\n', idx, cond.Vin, cond.Po);
+            fprintf('\nCondition #%d: Vin=%.1fV, Vref=%.1fV, Po=%.1fW\n', idx, cond.Vin, cond.Vref, cond.Po);
             
             opts.ModelVars = struct(...
                 'Vin', cond.Vin, 'Vref', cond.Vref, 'Po', cond.Po, ...
@@ -280,78 +280,119 @@ end
 
 function save_results_to_excel(filename, data)
     try
-        % 1. 准备设计参数数据 (frozenParams)
+        % --- 1. 准备并排序数据 ---
+        conds_cell = data.conditions;
+        numCond = length(conds_cell);
+        
+        % 提取基础数据用于排序
+        vref_list = zeros(numCond, 1);
+        for i = 1:numCond
+            vref_list(i) = conds_cell{i}(1).Vref(1);
+        end
+        [~, sortIdx] = sort(vref_list); % 按 Vref 升序排列
+        conds_sorted = conds_cell(sortIdx);
+
+        % --- 2. 构造表头与数据矩阵 ---
         fp = data.frozenParams;
-        paramHeader = {'Design Parameters', 'Value', 'Unit'};
         paramData = {
-            'Cr_p (Primary Resonant Cap)', fp.Cr_p(1), 'nF';
-            'Cr_s (Secondary Resonant Cap)', fp.Cr_s(1), 'nF';
-            'Lr (Resonant Inductor)', fp.Lr(1), 'uH';
-            'Lm (Magnetizing Inductor)', fp.Lm(1), 'uH';
-            'Np (Primary Turns)', fp.Np(1), 'turns';
-            'Ns (Secondary Turns)', fp.Ns(1), 'turns'
+            'Cr_p (nF)', fp.Cr_p(1); 'Cr_s (nF)', fp.Cr_s(1);
+            'Lr (uH)', fp.Lr(1); 'Lm (uH)', fp.Lm(1);
+            'Np', fp.Np(1); 'Ns', fp.Ns(1)
         };
 
-        % 2. 准备详细仿真结果 (打平嵌套结构)
-        conds = data.conditions;
-        numCond = length(conds);
-        
-        % 预定义表头
         headers = {'ID', 'Vin_V', 'Vref_V', 'Po_W', 'Rload_Ohm', 'Frequency_kHz', 'ZVS_All_OK', 'SimTime_s'};
-        % 动态添加开关管表头 (H1-H4)
-        for k = 1:4
-            headers = [headers, {sprintf('H%d_Status',k), sprintf('H%d_Ioff_A',k), sprintf('H%d_Irms_A',k)}];
-        end
-        % 动态添加谐振腔表头 (5个信号)
+        for k = 1:4, headers = [headers, {sprintf('H%d_Status',k), sprintf('H%d_Ioff',k), sprintf('H%d_Irms',k)}]; end
         resNames = {'VCrp', 'ILrp', 'ILm', 'VCrs', 'ILrs'};
-        for k = 1:5
-            headers = [headers, {sprintf('%s_RMS',resNames{k}), sprintf('%s_Max',resNames{k}), sprintf('%s_Min',resNames{k})}];
-        end
+        for k = 1:5, headers = [headers, {sprintf('%s_RMS',resNames{k}), sprintf('%s_Max',resNames{k}), sprintf('%s_Min',resNames{k})}]; end
 
-        % 初始化数据矩阵 (Cell 格式)
         tableData = cell(numCond, length(headers));
-
         for i = 1:numCond
-            c = conds{i}(1); % 强制标量引用
-            
-            % 基础数据
+            c = conds_sorted{i}(1);
             row = {c.id(1), c.Vin(1), c.Vref(1), c.Po(1), c.Rload(1), c.fre_khz(1), c.zvsAllOk(1), c.sim_time(1)};
-            
-            % 展开开关管数据 (ZVS + Details)
             for k = 1:4
-                zvs = c.zvsStatus{k}(1);
-                sw = c.switchDetails{k}(1);
-                row = [row, {zvs.status, sw.I_off, sw.I_rms}];
+                row = [row, {c.zvsStatus{k}(1).status, c.switchDetails{k}(1).I_off, c.switchDetails{k}(1).I_rms}];
             end
-            
-            % 展开谐振腔数据
             for k = 1:5
-                res = c.resonantCheck{k}(1);
-                row = [row, {res.rms, res.max, res.min}];
+                row = [row, {c.resonantCheck{k}(1).rms, c.resonantCheck{k}(1).max, c.resonantCheck{k}(1).min}];
             end
-            
             tableData(i, :) = row;
         end
 
-        % 3. 写入 Excel
-        % 写入参数区
-        writecell(paramHeader, filename, 'Range', 'A1');
+        % --- 3. 写入基础数据 (使用快捷方式) ---
+        fullPath = fullfile(pwd, filename);
+        if exist(fullPath, 'file'), delete(fullPath); end % 删除旧文件防止冲突
+        
+        writecell({'Design Parameters'}, filename, 'Range', 'A1');
         writecell(paramData, filename, 'Range', 'A2');
-
-        % 间隔两行写入结果区
-        resultStartLine = size(paramData, 1) + 4;
-        writecell({'Simulation Detailed Results'}, filename, 'Range', ['A' num2str(resultStartLine-1)]);
-        
-        % 写入表头
+        resultStartLine = 10;
         writecell(headers, filename, 'Range', ['A' num2str(resultStartLine)]);
-        
-        % 写入数据内容
         writecell(tableData, filename, 'Range', ['A' num2str(resultStartLine+1)]);
 
-        fprintf('[SUCCESS] Detailed Excel report generated: %s\n', filename);
+        % --- 4. 使用 ActiveX 绘制图表 ---
+        Excel = actxserver('Excel.Application');
+        Workbook = Excel.Workbooks.Open(fullPath);
+        Sheet = Workbook.Sheets.Item(1);
         
+        % 定义数据范围 (Vref 在 C 列，即第 3 列)
+        xRange = sprintf('C%d:C%d', resultStartLine+1, resultStartLine + numCond);
+        
+        % 图表配置列表: {标题, Y轴数据列索引(数字或数组)}
+        % 列索引参考: C=3, F=6, J=10, K=11, M=13, N=14, P=16, Q=17, S=19, T=20
+        % VCrp=21-23, ILrp=24-26, ILm=27-29, VCrs=30-32, ILrs=33-35
+        chartConfigs = {
+            'Switch Ioff (A)', [10, 13, 16, 19];       % 图表 1
+            'Switch Irms (A)', [11, 14, 17, 20];       % 图表 2
+            'VCrp Metrics',    [21, 22, 23];           % 图表 3
+            'ILrp Metrics',    [24, 25, 26];           % 图表 4
+            'ILm Metrics',     [27, 28, 29];           % 图表 5
+            'VCrs Metrics',    [30, 31, 32];           % 图表 6
+            'ILrs Metrics',    [33, 34, 35];           % 图表 7
+            'Frequency (kHz)', 6                       % 图表 8
+        };
+
+        chartTop = (resultStartLine + numCond + 5) * 15; % 起始高度位置
+        for i = 1:length(chartConfigs)
+            % 创建图表对象 [Left, Top, Width, Height]
+            leftPos = mod(i-1, 2) * 350 + 50;
+            topPos = chartTop + floor((i-1)/2) * 220;
+            ChartObj = Sheet.ChartObjects.Add(leftPos, topPos, 330, 200);
+            Chart = ChartObj.Chart;
+            Chart.ChartType = 'xlLineMarkers'; % 带数据标记的折线图
+            
+            % 清除默认系列
+            for k = Chart.SeriesCollection.Count:-1:1, Chart.SeriesCollection.Item(k).Delete; end
+            
+            % 添加数据系列
+            yCols = chartConfigs{i, 2};
+            for j = 1:length(yCols)
+                Series = Chart.SeriesCollection.NewSeries;
+                yRange = sprintf('%s%d:%s%d', char(64 + yCols(j)), resultStartLine+1, ...
+                                             char(64 + yCols(j)), resultStartLine + numCond);
+                % 处理超过 Z 列的情况 (简单转换，假设不超过 AI 列)
+                if yCols(j) > 26
+                    yRange = sprintf('A%s%d:A%s%d', char(64 + yCols(j) - 26), resultStartLine+1, ...
+                                                   char(64 + yCols(j) - 26), resultStartLine + numCond);
+                end
+                
+                Series.XValues = Sheet.Range(xRange);
+                Series.Values = Sheet.Range(yRange);
+                Series.Name = headers{yCols(j)};
+            end
+            
+            Chart.HasTitle = true;
+            Chart.ChartTitle.Text = chartConfigs{i, 1};
+            Chart.Axes(1).HasTitle = true;
+            Chart.Axes(1).AxisTitle.Text = 'Vref (V)';
+        end
+
+        Workbook.Save;
+        Workbook.Close;
+        Excel.Quit;
+        delete(Excel);
+        fprintf('[SUCCESS] Excel report with 8 charts generated: %s\n', filename);
+
     catch ME
-        fprintf('[WARNING] Excel report failed: %s\n', ME.message);
-        fprintf('请检查是否未关闭 Excel 文件或变量名不匹配。\n');
+        if exist('Excel', 'var'), Excel.Quit; delete(Excel); end
+        fprintf('[ERROR] Excel creation failed: %s\n', ME.message);
     end
 end
