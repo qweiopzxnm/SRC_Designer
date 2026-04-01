@@ -7,11 +7,11 @@
 
 function simulate_plecs_direct_multi()
     fprintf('========================================\n');
-    fprintf('PLECS Multi-Condition Simulation\n');
+    fprintf('PLECS Multi-Condition Simulation (Updated)\n');
     fprintf('========================================\n');
     
     try
-        % 1. 读取输入
+        % 1. 读取输入 (包含新变量)
         simData = read_verify_json('verify_input.json');
         frozenParams = simData.frozenParams;
         conditions = simData.conditions;
@@ -29,151 +29,117 @@ function simulate_plecs_direct_multi()
         
         for idx = 1:numConditions
             cond = conditions{idx};
-            fprintf('\nCondition #%d: Vin=%.1fV, Vref=%.1fV, Po=%.1fW\n', idx, cond.Vin, cond.Vref, cond.Po);
+            fprintf('\nCondition #%d: Vin=%.1fV, Vref=%.1fV, PS=%.1f\n', idx, cond.Vin, cond.Vref, cond.PS);
             
+            % --- 集成新参数到 ModelVars ---
             opts.ModelVars = struct(...
                 'Vin', cond.Vin, 'Vref', cond.Vref, 'Po', cond.Po, ...
                 'Lr', frozenParams.Lr * 1e-6, 'Crp', frozenParams.Cr_p * 1e-9, ...
                 'Crs', frozenParams.Cr_s * 1e-9, 'Lm', frozenParams.Lm * 1e-6, ...
-                'Np', frozenParams.Np, 'Ns', frozenParams.Ns, 'Rload', cond.Rload ...
+                'Np', frozenParams.Np, 'Ns', frozenParams.Ns, 'Rload', cond.Rload, ...
+                'PriDB1', cond.PriDB1 * 1e-9, 'PriDB2', cond.PriDB2 * 1e-9, 'PriPS2', cond.PriPS2 * 1e-9, ...
+                'SecDB_NonPS', cond.SecDB_NonPS * 1e-9, 'SecDB_PS', cond.SecDB_PS * 1e-9, 'PS', cond.PS * 1e-9 ...
             );
             
             tic;
             data = plecs('simulate', opts);
             sim_time = toc;
             
-            % 稳态数据截取
+            % 数据处理
             numPoints = length(data.Time);
             startIdx = floor(numPoints * 2/3);
             allValues = data.Values(:, startIdx:end);
             
-            % --- 新增：FreCheck 信号提取 (假设在第 18 行) ---
-            if size(allValues, 1) >= 18
-                raw_fre_hz = allValues(18, :); 
-                fre_khz = mean(raw_fre_hz) / 1000; % 换算为 kHz
-            else
-                fre_khz = 0; % 防止信号未定义导致报错
-            end
+            % 频率提取 (第18行)
+            fre_khz = mean(allValues(18, :)) / 1000;
             
-            % 4. ZVS 分析 (1-12行)
+            % ZVS & 开关管分析 (1-12行)
             zvsStatus = cell(4, 1);
+            switchDetails = cell(4, 1);
             zvsAllOk = true; 
             swData = allValues(1:12, :); 
             
             for k = 1:4
                 baseIdx = (k-1)*3;
-                dri = swData(baseIdx + 1, :);
-                vds = swData(baseIdx + 2, :);
+                dri = swData(baseIdx+1, :); vds = swData(baseIdx+2, :); isw = swData(baseIdx+3, :);
                 risingEdges = find(diff(dri > 0.5) == 1);
                 
+                % ZVS判断
                 if isempty(risingEdges)
                     zvsStatus{k} = struct('status', 'No Switching');
                 else
-                    vds_at_turnon = max(vds(risingEdges));
-                    if vds_at_turnon < 20
-                        zvsStatus{k} = struct('status', 'ZVS OK');
-                    else
-                        zvsAllOk = false;
-                        zvsStatus{k} = struct('status', sprintf('ZVS LOST (%.1fV)', vds_at_turnon));
-                    end
+                    v_turnon = max(vds(risingEdges));
+                    if v_turnon < 20, zvsStatus{k} = struct('status', 'ZVS OK');
+                    else, zvsAllOk = false; zvsStatus{k} = struct('status', sprintf('ZVS LOST(%.1fV)', v_turnon)); end
                 end
+                % 电流提取
+                switchDetails{k} = struct('I_off', mean(isw), 'I_rms', sqrt(mean(isw.^2)));
             end
             
-            % 5. 开关管参数
-            switchDetails = cell(4, 1);
-            for k = 1:4
-                i_sw = swData((k-1)*3 + 3, :);
-                switchDetails{k} = struct('I_off', mean(i_sw), 'I_rms', sqrt(mean(i_sw.^2)));
-            end
-            
-            % 6. 谐振腔参数 (13-17行)
+            % 谐振腔参数 (13-17行)
             resonantCheck = cell(5, 1);
-            resData = allValues(13:17, :);
             for k = 1:5
-                sig = resData(k, :);
+                sig = allValues(12+k, :);
                 resonantCheck{k} = struct('rms', sqrt(mean(sig.^2)), 'max', max(sig), 'min', min(sig));
             end
             
-            % 封装结果
+            % 封装结果 (加入新变量以便Excel调用)
             allResults{idx} = struct(...
-                'id', idx, ...
-                'Vin', double(cond.Vin(1)), ...
-                'Vref', double(cond.Vref(1)), ...
-                'Po', double(cond.Po(1)), ...
-                'Rload', double(cond.Rload(1)), ...
-                'fre_khz', double(fre_khz(1)), ... % 新增字段
-                'zvsStatus', {zvsStatus}, ... 
-                'zvsAllOk', logical(zvsAllOk), ...
-                'switchDetails', {switchDetails}, ... 
-                'resonantCheck', {resonantCheck}, ... 
-                'sim_time', double(sim_time(1)));
+                'id', idx, 'Vin', cond.Vin, 'Vref', cond.Vref, 'Po', cond.Po, 'Rload', cond.Rload, ...
+                'PriDB1', cond.PriDB1, 'PriDB2', cond.PriDB2, 'PriPS2', cond.PriPS2, ...
+                'SecDB_NonPS', cond.SecDB_NonPS, 'SecDB_PS', cond.SecDB_PS, 'PS', cond.PS, ...
+                'fre_khz', fre_khz, 'zvsAllOk', zvsAllOk, 'zvsStatus', {zvsStatus}, ... 
+                'switchDetails', {switchDetails}, 'resonantCheck', {resonantCheck}, 'sim_time', sim_time);
         end
         
-        % 7. 保存
-        result.success = true;
-        result.timestamp = char(datetime('now'));
-        result.numConditions = numConditions;
+        % 保存结果
         result.frozenParams = frozenParams;
         result.conditions = allResults;
-        
-        write_verify_json('verify_output.json', result);
-        fprintf('\nSUCCESS - Results saved to verify_output.json\n');
-        
-        % --- 新增：保存到 Excel ---
-        excel_name = 'Simulation_Report.xlsx';
-        save_results_to_excel(excel_name, result);
-        fprintf('\nSUCCESS - All processes completed\n');
+        save_results_to_excel('Simulation_Report.xlsx', result);
+        fprintf('\nSUCCESS - Simulation and Excel generation finished.\n');
         
     catch err
         fprintf('\nFAILED: %s\n', err.message);
-        error_result.success = false;
-        error_result.error = err.message;
-        error_result.timestamp = char(datetime('now'));
-        write_verify_json('verify_output.json', error_result);
         rethrow(err);
     end
 end
 
-% 读取多工况 JSON
+% --- 修改 JSON 解析以支持新变量 ---
 function simData = read_verify_json(filename)
     content = fileread(filename);
-    
-    % 解析 frozenParams
-    simData.frozenParams.Cr_p = extract_num(content, 'Cr_p');
-    simData.frozenParams.Cr_s = extract_num(content, 'Cr_s');
-    simData.frozenParams.Lr = extract_num(content, 'Lr');
-    simData.frozenParams.Lm = extract_num(content, 'Lm');
-    simData.frozenParams.Np = extract_int(content, 'Np');
-    simData.frozenParams.Ns = extract_int(content, 'Ns');
-    
-    % 解析 conditions 数组 (简化解析)
+    % 解析 frozenParams (略，保持你之前的逻辑)
+    simData.frozenParams.Cr_p = extract_val(content, 'Cr_p');
+    simData.frozenParams.Cr_s = extract_val(content, 'Cr_s');
+    simData.frozenParams.Lr = extract_val(content, 'Lr');
+    simData.frozenParams.Lm = extract_val(content, 'Lm');
+    simData.frozenParams.Np = extract_val(content, 'Np');
+    simData.frozenParams.Ns = extract_val(content, 'Ns');
+
+    % 逐行解析 Conditions
     simData.conditions = {};
-    cond_pattern = '"Vin":\s*([\d.]+).*?"Vref":\s*([\d.]+).*?"Po":\s*([\d.]+).*?"Rload":\s*([\d.]+)';
-    
-    % 使用更简单的方法 - 逐行解析
     lines = strsplit(content, '\n');
-    inCondition = false;
-    currentCond = struct();
-    
+    cur = struct();
     for i = 1:length(lines)
-        line = lines{i};
-        
-        if contains(line, '"Vin":')
-            currentCond.Vin = extract_num_simple(line, 'Vin');
-        elseif contains(line, '"Vref":')
-            currentCond.Vref = extract_num_simple(line, 'Vref');
-        elseif contains(line, '"Po":')
-            currentCond.Po = extract_num_simple(line, 'Po');
-        elseif contains(line, '"Rload":')
-            currentCond.Rload = extract_num_simple(line, 'Rload');
-            % 一个工况结束
-            if isfield(currentCond, 'Vin') && isfield(currentCond, 'Vref')
-                simData.conditions{end+1} = currentCond;
-            end
-            currentCond = struct();
+        l = lines{i};
+        if contains(l, '"Vin":'), cur.Vin = extract_num(l, 'Vin');
+        elseif contains(l, '"Vref":'), cur.Vref = extract_num(l, 'Vref');
+        elseif contains(l, '"Po":'), cur.Po = extract_num(l, 'Po');
+        elseif contains(l, '"Rload":'), cur.Rload = extract_num(l, 'Rload');
+        % 新增解析行
+        elseif contains(l, '"PriDB1":'), cur.PriDB1 = extract_num(l, 'PriDB1');
+        elseif contains(l, '"PriDB2":'), cur.PriDB2 = extract_num(l, 'PriDB2');
+        elseif contains(l, '"PriPS2":'), cur.PriPS2 = extract_num(l, 'PriPS2');
+        elseif contains(l, '"SecDB_NonPS":'), cur.SecDB_NonPS = extract_num(l, 'SecDB_NonPS');
+        elseif contains(l, '"SecDB_PS":'), cur.SecDB_PS = extract_num(l, 'SecDB_PS');
+        elseif contains(l, '"PS":'), cur.PS = extract_num(l, 'PS');
+            % 以 PS 为工况结束标志存入
+            simData.conditions{end+1} = cur; cur = struct();
         end
     end
 end
+
+function v = extract_num(l, k), r = regexp(l, [k '":\s*([\d.-]+)'], 'tokens'); if ~isempty(r), v = str2double(r{1}{1}); else, v=0; end; end
+function v = extract_val(c, k), r = regexp(c, [k '":\s*([\d.-]+)'], 'tokens'); if ~isempty(r), v = str2double(r{1}{1}); else, v=0; end; end
 
 % ---------------------------------------------------------
 % 修正后的 JSON 写入函数 (增加 fre_khz 输出)
@@ -246,25 +212,25 @@ function write_verify_json(filename, data)
     fclose(fid);
     
 end
-% 提取数字 (通用)
-function val = extract_num(str, key)
-    pattern = sprintf('"%s":\\s*([\\d.eE+-]+)', key);
-    tokens = regexp(str, pattern, 'tokens');
-    if isempty(tokens)
-        error('Key not found: %s', key);
-    end
-    val = str2double(tokens{1}{1});
-end
+% % 提取数字 (通用)
+% function val = extract_num(str, key)
+%     pattern = sprintf('"%s":\\s*([\\d.eE+-]+)', key);
+%     tokens = regexp(str, pattern, 'tokens');
+%     if isempty(tokens)
+%         error('Key not found: %s', key);
+%     end
+%     val = str2double(tokens{1}{1});
+% end
 
-% 提取整数
-function val = extract_int(str, key)
-    pattern = sprintf('"%s":\\s*(\\d+)', key);
-    tokens = regexp(str, pattern, 'tokens');
-    if isempty(tokens)
-        error('Key not found: %s', key);
-    end
-    val = str2double(tokens{1}{1});
-end
+% % 提取整数
+% function val = extract_int(str, key)
+%     pattern = sprintf('"%s":\\s*(\\d+)', key);
+%     tokens = regexp(str, pattern, 'tokens');
+%     if isempty(tokens)
+%         error('Key not found: %s', key);
+%     end
+%     val = str2double(tokens{1}{1});
+% end
 
 
 % 辅助函数：模拟三元运算
@@ -272,127 +238,89 @@ function out = ifelse(cond, a, b)
     if cond, out = a; else, out = b; end
 end
 
-% 辅助解析函数（保持原样或微调）
-function val = extract_num_simple(line, key)
-    res = regexp(line, [key '":\s*([\d.-]+)'], 'tokens');
-    if ~isempty(res), val = str2double(res{1}{1}); else, val = 0; end
-end
+% % 辅助解析函数（保持原样或微调）
+% function val = extract_num_simple(line, key)
+%     res = regexp(line, [key '":\s*([\d.-]+)'], 'tokens');
+%     if ~isempty(res), val = str2double(res{1}{1}); else, val = 0; end
+% end
 
+% --- 增强版 Excel 导出函数 (带绘图功能) ---
 function save_results_to_excel(filename, data)
     try
-        % --- 1. 准备并排序数据 ---
         conds_cell = data.conditions;
         numCond = length(conds_cell);
         
-        % 提取基础数据用于排序
-        vref_list = zeros(numCond, 1);
-        for i = 1:numCond
-            vref_list(i) = conds_cell{i}(1).Vref(1);
-        end
-        [~, sortIdx] = sort(vref_list); % 按 Vref 升序排列
-        conds_sorted = conds_cell(sortIdx);
+        % 按 Vref 排序
+        vrefs = cellfun(@(x) x.Vref, conds_cell);
+        [~, sIdx] = sort(vrefs);
+        conds = conds_cell(sIdx);
 
-        % --- 2. 构造表头与数据矩阵 ---
-        fp = data.frozenParams;
-        paramData = {
-            'Cr_p (nF)', fp.Cr_p(1); 'Cr_s (nF)', fp.Cr_s(1);
-            'Lr (uH)', fp.Lr(1); 'Lm (uH)', fp.Lm(1);
-            'Np', fp.Np(1); 'Ns', fp.Ns(1)
-        };
-
-        headers = {'ID', 'Vin_V', 'Vref_V', 'Po_W', 'Rload_Ohm', 'Frequency_kHz', 'ZVS_All_OK', 'SimTime_s'};
+        % 表头定义 (增加了新变量)
+        headers = {'ID', 'Vin', 'Vref', 'Po', 'Rload', 'PriDB1', 'PriDB2', 'PriPS2', 'SecDB_NonPS', 'SecDB_PS', 'PS', ...
+                   'Frequency_kHz', 'ZVS_All_OK', 'SimTime_s'};
         for k = 1:4, headers = [headers, {sprintf('H%d_Status',k), sprintf('H%d_Ioff',k), sprintf('H%d_Irms',k)}]; end
         resNames = {'VCrp', 'ILrp', 'ILm', 'VCrs', 'ILrs'};
         for k = 1:5, headers = [headers, {sprintf('%s_RMS',resNames{k}), sprintf('%s_Max',resNames{k}), sprintf('%s_Min',resNames{k})}]; end
 
+        % 填入数据
         tableData = cell(numCond, length(headers));
         for i = 1:numCond
-            c = conds_sorted{i}(1);
-            row = {c.id(1), c.Vin(1), c.Vref(1), c.Po(1), c.Rload(1), c.fre_khz(1), c.zvsAllOk(1), c.sim_time(1)};
-            for k = 1:4
-                row = [row, {c.zvsStatus{k}(1).status, c.switchDetails{k}(1).I_off, c.switchDetails{k}(1).I_rms}];
-            end
-            for k = 1:5
-                row = [row, {c.resonantCheck{k}(1).rms, c.resonantCheck{k}(1).max, c.resonantCheck{k}(1).min}];
-            end
+            c = conds{i};
+            row = {c.id, c.Vin, c.Vref, c.Po, c.Rload, c.PriDB1, c.PriDB2, c.PriPS2, c.SecDB_NonPS, c.SecDB_PS, c.PS, ...
+                   c.fre_khz, c.zvsAllOk, c.sim_time};
+            for k = 1:4, row = [row, {c.zvsStatus{k}.status, c.switchDetails{k}.I_off, c.switchDetails{k}.I_rms}]; end
+            for k = 1:5, row = [row, {c.resonantCheck{k}.rms, c.resonantCheck{k}.max, c.resonantCheck{k}.min}]; end
             tableData(i, :) = row;
         end
 
-        % --- 3. 写入基础数据 (使用快捷方式) ---
-        fullPath = fullfile(pwd, filename);
-        if exist(fullPath, 'file'), delete(fullPath); end % 删除旧文件防止冲突
-        
-        writecell({'Design Parameters'}, filename, 'Range', 'A1');
-        writecell(paramData, filename, 'Range', 'A2');
-        resultStartLine = 10;
-        writecell(headers, filename, 'Range', ['A' num2str(resultStartLine)]);
-        writecell(tableData, filename, 'Range', ['A' num2str(resultStartLine+1)]);
+        % 写入 Excel
+        if exist(filename, 'file'), delete(filename); end
+        writecell(headers, filename, 'Range', 'A1');
+        writecell(tableData, filename, 'Range', 'A2');
 
-        % --- 4. 使用 ActiveX 绘制图表 ---
+        % --- ActiveX 绘图逻辑 (重新计算列索引) ---
+        % 注意：因为插入了6个变量，Vref 现在是第3列 (C)，
+        % 频率列变为第12列，开关管数据从第15列开始...
         Excel = actxserver('Excel.Application');
-        Workbook = Excel.Workbooks.Open(fullPath);
-        Sheet = Workbook.Sheets.Item(1);
+        WB = Excel.Workbooks.Open(fullfile(pwd, filename));
+        Sheet = WB.Sheets.Item(1);
+        xRange = sprintf('C2:C%d', numCond+1); % X轴始终是 Vref (C列)
         
-        % 定义数据范围 (Vref 在 C 列，即第 3 列)
-        xRange = sprintf('C%d:C%d', resultStartLine+1, resultStartLine + numCond);
-        
-        % 图表配置列表: {标题, Y轴数据列索引(数字或数组)}
-        % 列索引参考: C=3, F=6, J=10, K=11, M=13, N=14, P=16, Q=17, S=19, T=20
-        % VCrp=21-23, ILrp=24-26, ILm=27-29, VCrs=30-32, ILrs=33-35
-        chartConfigs = {
-            'Switch Ioff (A)', [10, 13, 16, 19];       % 图表 1
-            'Switch Irms (A)', [11, 14, 17, 20];       % 图表 2
-            'VCrp Metrics',    [21, 22, 23];           % 图表 3
-            'ILrp Metrics',    [24, 25, 26];           % 图表 4
-            'ILm Metrics',     [27, 28, 29];           % 图表 5
-            'VCrs Metrics',    [30, 31, 32];           % 图表 6
-            'ILrs Metrics',    [33, 34, 35];           % 图表 7
-            'Frequency (kHz)', 6                       % 图表 8
+        % {标题, Y轴列索引}
+        % Ioff: 16, 19, 22, 25 | Irms: 17, 20, 23, 26
+        % VCrp: 27-29, ILrp: 30-32, ILm: 33-35, VCrs: 36-38, ILrs: 39-41
+        configs = {
+            'Switch Ioff (A)', [16, 19, 22, 25];
+            'Switch Irms (A)', [17, 20, 23, 26];
+            'VCrp Metrics',    [27, 28, 29];
+            'ILrp Metrics',    [30, 31, 32];
+            'ILm Metrics',     [33, 34, 35];
+            'VCrs Metrics',    [36, 37, 38];
+            'ILrs Metrics',    [39, 40, 41];
+            'Frequency (kHz)', 12
         };
 
-        chartTop = (resultStartLine + numCond + 5) * 15; % 起始高度位置
-        for i = 1:length(chartConfigs)
-            % 创建图表对象 [Left, Top, Width, Height]
-            leftPos = mod(i-1, 2) * 350 + 50;
-            topPos = chartTop + floor((i-1)/2) * 220;
-            ChartObj = Sheet.ChartObjects.Add(leftPos, topPos, 330, 200);
-            Chart = ChartObj.Chart;
-            Chart.ChartType = 'xlLineMarkers'; % 带数据标记的折线图
+        chartTop = (numCond + 5) * 15;
+        for i = 1:length(configs)
+            CO = Sheet.ChartObjects.Add(mod(i-1,2)*350+50, chartTop+floor((i-1)/2)*220, 330, 200);
+            C = CO.Chart; C.ChartType = 'xlLineMarkers';
+            for k=C.SeriesCollection.Count:-1:1, C.SeriesCollection.Item(k).Delete; end
             
-            % 清除默认系列
-            for k = Chart.SeriesCollection.Count:-1:1, Chart.SeriesCollection.Item(k).Delete; end
-            
-            % 添加数据系列
-            yCols = chartConfigs{i, 2};
+            yCols = configs{i, 2};
             for j = 1:length(yCols)
-                Series = Chart.SeriesCollection.NewSeries;
-                yRange = sprintf('%s%d:%s%d', char(64 + yCols(j)), resultStartLine+1, ...
-                                             char(64 + yCols(j)), resultStartLine + numCond);
-                % 处理超过 Z 列的情况 (简单转换，假设不超过 AI 列)
-                if yCols(j) > 26
-                    yRange = sprintf('A%s%d:A%s%d', char(64 + yCols(j) - 26), resultStartLine+1, ...
-                                                   char(64 + yCols(j) - 26), resultStartLine + numCond);
-                end
-                
-                Series.XValues = Sheet.Range(xRange);
-                Series.Values = Sheet.Range(yRange);
-                Series.Name = headers{yCols(j)};
+                S = C.SeriesCollection.NewSeries;
+                col = yCols(j);
+                % 处理 Excel 列标 (A-Z, AA-AZ)
+                if col <= 26, colName = char(64+col); else, colName = ['A' char(64+col-26)]; end
+                S.XValues = Sheet.Range(xRange);
+                S.Values = Sheet.Range(sprintf('%s2:%s%d', colName, colName, numCond+1));
+                S.Name = headers{col};
             end
-            
-            Chart.HasTitle = true;
-            Chart.ChartTitle.Text = chartConfigs{i, 1};
-            Chart.Axes(1).HasTitle = true;
-            Chart.Axes(1).AxisTitle.Text = 'Vref (V)';
+            C.HasTitle = true; C.ChartTitle.Text = configs{i, 1};
         end
-
-        Workbook.Save;
-        Workbook.Close;
-        Excel.Quit;
-        delete(Excel);
-        fprintf('[SUCCESS] Excel report with 8 charts generated: %s\n', filename);
-
+        WB.Save; WB.Close; Excel.Quit; delete(Excel);
     catch ME
-        if exist('Excel', 'var'), Excel.Quit; delete(Excel); end
-        fprintf('[ERROR] Excel creation failed: %s\n', ME.message);
+        if exist('Excel','var'), Excel.Quit; end
+        rethrow(ME);
     end
 end
