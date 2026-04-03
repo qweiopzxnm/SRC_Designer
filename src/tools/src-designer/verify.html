@@ -5,144 +5,597 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LLC 验证工具 - 多工况仿真</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    /* 验证页特有样式 */
-    .frozen-params-panel {
-      background: #f0fdf4;
-      border: 1px solid #16a34a;
-      border-radius: 8px;
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      color: #1f2937;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
       padding: 20px;
-      margin-bottom: 20px;
     }
-    .frozen-params-panel h3 {
-      color: #166534;
-      margin-top: 0;
+    
+    /* 头部 */
+    header {
+      background: var(--bg-gradient);
+      color: white;
+      padding: 30px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
     }
+    
+    header h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    
+    header .subtitle {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    /* 面板通用样式 */
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.3s ease;
+    }
+    
+    .panel:hover {
+      box-shadow: var(--card-shadow-hover);
+    }
+    
+    .panel h2 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* 冻结参数面板 */
+    .frozen-params-panel {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 1px solid #10b981;
+    }
+    
+    .frozen-params-panel h2 {
+      color: #065f46;
+    }
+    
     .frozen-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
     }
+    
     .frozen-item {
       background: white;
-      padding: 12px;
-      border-radius: 6px;
-      border-left: 3px solid #16a34a;
+      padding: 16px;
+      border-radius: 10px;
+      border-left: 4px solid #10b981;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
+    
     .frozen-item .label {
-      font-size: 12px;
+      font-size: 11px;
       color: #6b7280;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+    
     .frozen-item .value {
-      font-size: 16px;
-      font-weight: 600;
-      color: #166534;
+      font-size: 20px;
+      font-weight: 700;
+      color: #065f46;
     }
+    
     .frozen-item .unit {
       font-size: 12px;
-      color: #6b7280;
+      color: #9ca3af;
       margin-left: 4px;
     }
     
-    /* 工况列表 */
-    .conditions-list {
-      margin: 20px 0;
+    /* 曲线面板 */
+    .curve-panel {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #f59e0b;
     }
-    .condition-row {
-      display: grid;
-      grid-template-columns: 100px 1fr 1fr 1fr 1fr 80px;
-      gap: 10px;
+    
+    .curve-panel h2 {
+      color: #92400e;
+    }
+    
+    .curve-panel-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      padding: 12px;
-      background: #f8fafc;
-      border-radius: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
     }
-    .condition-row.header {
-      background: #e2e8f0;
+    
+    .curve-panel-desc {
+      color: #78350f;
+      font-size: 13px;
+      margin: 0 0 16px 0;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 8px;
+    }
+    
+    .curve-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    
+    .curve-card {
+      background: white;
+      border-radius: 10px;
+      padding: 16px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+    }
+    
+    .curve-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+    }
+    
+    .curve-card.enabled {
+      border-color: #10b981;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+    }
+    
+    .curve-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .curve-card-title {
+      font-size: 14px;
       font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .condition-row input {
+    
+    .curve-card-unit {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: normal;
+    }
+    
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .toggle-switch input[type="checkbox"] {
+      width: 44px;
+      height: 24px;
+      appearance: none;
+      background: #e5e7eb;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .toggle-switch input[type="checkbox"]:checked {
+      background: #10b981;
+    }
+    
+    .toggle-switch input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .toggle-switch input[type="checkbox"]:checked::before {
+      transform: translateX(20px);
+    }
+    
+    .toggle-switch label {
+      font-size: 12px;
+      color: #6b7280;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .curve-points {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 6px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+    
+    .curve-point {
+      display: grid;
+      grid-template-columns: 45px 1fr 45px 1fr 28px;
+      align-items: center;
+      gap: 6px;
+      background: white;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .curve-point input {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #cbd5e1;
+      min-width: 70px;
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 13px;
+      text-align: center;
+      font-weight: 500;
+      transition: all 0.2s;
+      box-sizing: border-box;
     }
-    .condition-row .row-label {
-      font-size: 14px;
-      color: #475569;
+    
+    .curve-point input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
     }
-    .btn-remove {
+    
+    .curve-point-label {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    .btn-point-remove {
+      width: 20px;
+      height: 20px;
+      border: none;
       background: #fee2e2;
       color: #dc2626;
-      border: 1px solid #dc2626;
-      padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
-    }
-    .btn-remove:hover {
-      background: #fecaca;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
     }
     
-    /* 操作按钮区 */
+    .btn-point-remove:hover {
+      background: #fecaca;
+      transform: scale(1.1);
+    }
+    
+    .curve-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f3f4f6;
+    }
+    
+    .btn-add-point {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      color: #374151;
+      border: 1px solid #d1d5db;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .btn-add-point:hover {
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+      transform: translateY(-1px);
+    }
+    
+    .curve-chart-wrapper {
+      margin-top: 12px;
+      height: 160px;
+      position: relative;
+      background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    
+    /* 工具卡片特殊样式 */
+    .curve-tools-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    
+    .curve-tools-card .curve-card-footer {
+      margin-top: auto;
+    }
+    
+    .curve-tools-card .curve-chart-wrapper {
+      background: transparent !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 120px;
+    }
+    
+    /* 工况面板 */
+    .input-panel {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid #3b82f6;
+    }
+    
+    .input-panel h2 {
+      color: #1e40af;
+    }
+    
+    .conditions-list {
+      margin: 16px 0;
+    }
+    
+    .condition-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 1fr 1fr 1fr 50px;
+      gap: 10px;
+      align-items: center;
+      padding: 14px 16px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: all 0.2s;
+    }
+    
+    .condition-row:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .condition-row.header {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      box-shadow: none;
+    }
+    
+    .condition-row.header .row-label {
+      color: white;
+      font-weight: 600;
+    }
+    
+    .condition-row input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .condition-row input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    
+    .condition-row input:disabled {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+    
+    .condition-row input:disabled::placeholder {
+      color: #9ca3af;
+    }
+    
+    .condition-row .row-label {
+      font-size: 13px;
+      color: #4b5563;
+      font-weight: 500;
+    }
+    
+    .btn-remove {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .btn-remove:hover {
+      background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(220, 38, 38, 0.2);
+    }
+    
+    /* 按钮组 */
     .verify-actions {
       display: flex;
-      gap: 15px;
+      gap: 12px;
       flex-wrap: wrap;
       margin-top: 20px;
       padding-top: 20px;
-      border-top: 1px solid #e2e8f0;
+      border-top: 2px solid #e5e7eb;
     }
     
-    /* 结果表格 */
-    .results-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      font-size: 13px;
-    }
-    .results-table th,
-    .results-table td {
-      border: 1px solid #e2e8f0;
-      padding: 10px;
-      text-align: center;
-    }
-    .results-table th {
-      background: #f8fafc;
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
       font-weight: 600;
-      color: #475569;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    .results-table tr:nth-child(even) {
-      background: #f8fafc;
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
     }
-    .results-table tr:hover {
-      background: #f1f5f9;
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
     }
-    .zvs-ok { color: #16a34a; font-weight: 600; }
-    .zvs-warning { color: #ca8a04; font-weight: 600; }
-    .zvs-fail { color: #dc2626; font-weight: 600; }
+    
+    .btn-outline {
+      background: white;
+      color: #4f46e5;
+      border: 2px solid #4f46e5;
+    }
+    
+    .btn-outline:hover {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      transform: translateY(-2px);
+    }
     
     /* 返回按钮 */
     .back-to-design {
       position: fixed;
       top: 20px;
       right: 20px;
-      background: #f1f5f9;
-      color: #475569;
-      border: 1px solid #cbd5e1;
+      background: white;
+      color: #4f46e5;
+      border: 2px solid #4f46e5;
       padding: 10px 20px;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 14px;
+      font-weight: 600;
       z-index: 1000;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
     }
+    
     .back-to-design:hover {
-      background: #e2e8f0;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: var(--card-shadow-hover);
+    }
+    
+    /* 状态消息 */
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .status-success {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    
+    .status-error {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    
+    .status-warning {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      color: #92400e;
+      border: 1px solid #f59e0b;
+    }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .curve-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .condition-row {
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      .verify-actions {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -152,14 +605,14 @@
   <div class="container">
     <header>
       <h1>🔍 LLC 验证工具</h1>
-      <p class="subtitle">多工况仿真验证</p>
+      <p class="subtitle">多工况仿真验证 · 曲线可视化配置</p>
     </header>
 
     <main>
       <!-- 冻结参数面板 -->
       <section class="panel frozen-params-panel">
         <h2>❄️ 冻结的谐振参数</h2>
-        <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">
+        <p style="color: #065f46; font-size: 13px; margin: 0 0 16px 0;">
           以下参数从设计页同步，点击"更新冻结参数"可重新获取
         </p>
         <div class="frozen-grid">
@@ -185,14 +638,185 @@
           </div>
           <div class="frozen-item">
             <span class="label">变压器变比 N</span>
-            <span class="value" id="frozen-Np">-</span>
-            <span class="unit">:</span>
-            <span class="value" id="frozen-Ns">-</span>
+            <span class="value"><span id="frozen-Np">-</span>:<span id="frozen-Ns">-</span></span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">原边电容并联颗数</span>
+            <span class="value" id="frozen-Np-cap">-</span>
+            <span class="unit">颗</span>
+          </div>
+          <div class="frozen-item">
+            <span class="label">副边电容并联颗数</span>
+            <span class="value" id="frozen-Ns-cap">-</span>
+            <span class="unit">颗</span>
           </div>
         </div>
-        <div class="button-group" style="margin-top: 15px;">
+        <div class="verify-actions" style="border-top: none; padding-top: 16px; margin-top: 16px;">
           <button id="btn-sync-frozen" class="btn btn-primary">🔄 更新冻结参数</button>
           <button id="btn-lock-params" class="btn btn-outline">🔒 锁定参数</button>
+        </div>
+      </section>
+
+      <!-- 曲线配置面板 -->
+      <section class="panel curve-panel">
+        <div class="curve-panel-header">
+          <h2>📈 曲线可视化配置</h2>
+          <div style="display: flex; gap: 10px;">
+            <button id="btn-save-curves" class="btn btn-primary">💾 保存曲线</button>
+            <button id="btn-load-curves" class="btn btn-outline">📂 导入曲线</button>
+          </div>
+        </div>
+        <p class="curve-panel-desc">
+          💡 横轴：输出电压 Vref (V) | 使能后工况数值由曲线根据 Vref 自动计算，否则使用默认值（死区 200ns，移相 0ns）
+        </p>
+        
+        <div class="curve-grid">
+          <!-- 工具按钮卡片 -->
+          <div class="curve-card curve-tools-card">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">🛠️ 工具</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; padding: 10px 0;">
+              <button id="btn-import-datasheet" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                📄 导入规格书
+              </button>
+              <button id="btn-webplot" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="window.open('https://apps.automeris.io/wpd4/', '_blank')">
+                📈 WebPlotDigitizer
+              </button>
+            </div>
+            <div class="curve-chart-wrapper" style="background: transparent; display: flex; align-items: center; justify-content: center;">
+              <div style="text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.6;">
+                <p style="margin: 0 0 8px 0;">💡 提示</p>
+                <p style="margin: 0;">使用规格书或<br>WebPlotDigitizer 提取数据</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Vin 曲线 -->
+          <div class="curve-card" id="card-vin">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">⚡ Vin <span class="curve-card-unit">输入电压 (V)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="vin-enable" onchange="LLCVerifier.toggleCurve('vin')">
+                <label for="vin-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="vin-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('vin')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="vin-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- PriDB1 曲线 -->
+          <div class="curve-card" id="card-pridb1">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">🔌 PriDB1 <span class="curve-card-unit">原边非移相死区 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="pridb1-enable" onchange="LLCVerifier.toggleCurve('pridb1')">
+                <label for="pridb1-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="pridb1-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb1')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="pridb1-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- PriDB2 曲线 -->
+          <div class="curve-card" id="card-pridb2">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">🔌 PriDB2 <span class="curve-card-unit">原边移相死区 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="pridb2-enable" onchange="LLCVerifier.toggleCurve('pridb2')">
+                <label for="pridb2-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="pridb2-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb2')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="pridb2-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- PriPS2 曲线 -->
+          <div class="curve-card" id="card-prips2">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">📐 PriPS2 <span class="curve-card-unit">原边移相 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="prips2-enable" onchange="LLCVerifier.toggleCurve('prips2')">
+                <label for="prips2-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="prips2-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('prips2')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="prips2-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- SecDB_NonPS 曲线 -->
+          <div class="curve-card" id="card-secdb-nonps">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">🔌 SecDB_NonPS <span class="curve-card-unit">副边非移相死区 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="secdb-nonps-enable" onchange="LLCVerifier.toggleCurve('secdb_nonps')">
+                <label for="secdb-nonps-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="secdb-nonps-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_nonps')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="secdb-nonps-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- SecDB_PS 曲线 -->
+          <div class="curve-card" id="card-secdb-ps">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">🔌 SecDB_PS <span class="curve-card-unit">副边移相死区 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="secdb-ps-enable" onchange="LLCVerifier.toggleCurve('secdb_ps')">
+                <label for="secdb-ps-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="secdb-ps-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_ps')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="secdb-ps-chart"></canvas>
+            </div>
+          </div>
+          
+          <!-- SecPS 曲线 -->
+          <div class="curve-card" id="card-secps">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">📐 SecPS <span class="curve-card-unit">副边移相 (ns)</span></h3>
+              <div class="toggle-switch">
+                <input type="checkbox" id="secps-enable" onchange="LLCVerifier.toggleCurve('secps')">
+                <label for="secps-enable">使能</label>
+              </div>
+            </div>
+            <div class="curve-points" id="secps-points"></div>
+            <div class="curve-card-footer">
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secps')">➕ 添加数据点</button>
+            </div>
+            <div class="curve-chart-wrapper">
+              <canvas id="secps-chart"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -203,10 +827,10 @@
         <div class="conditions-list">
           <div class="condition-row header">
             <div class="row-label">工况 #</div>
-            <div class="row-label">输入电压 Vin (V)</div>
-            <div class="row-label">输出电压 Vref (V)</div>
-            <div class="row-label">输出功率 Po (W)</div>
-            <div class="row-label">负载 Rload (Ω)</div>
+            <div class="row-label">Vin (V)</div>
+            <div class="row-label">Vref (V)</div>
+            <div class="row-label">Po (W)</div>
+            <div class="row-label">Rload (Ω)</div>
             <div class="row-label">操作</div>
           </div>
           <div id="conditions-container">
@@ -240,8 +864,8 @@
       </section>
     </main>
 
-    <footer>
-      <p>LLC 验证工具 - 多工况仿真</p>
+    <footer style="text-align: center; padding: 20px; color: #6b7280; font-size: 13px;">
+      <p>LLC 验证工具 - 多工况仿真验证</p>
     </footer>
   </div>
 

@@ -450,6 +450,8 @@ const LLCDesigner = {
         Lm_uH: act.Lm_uH,
         Np: dsn.Np,
         Ns: dsn.Ns,
+        Np_cap: act.Np_cap,
+        Ns_cap: act.Ns_cap,
         fr: act.fr,
         Q: act.Q,
         k: act.k
