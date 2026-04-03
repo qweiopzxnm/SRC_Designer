@@ -40,17 +40,31 @@ function simulate_plecs_direct_multi()
             % 提取频率 (Hz -> kHz)
             fre_khz = mean(allValues(18, :)) / 1000;
             
-            % 开关管分析 (1-12行)
+            % 开关管分析 (1-12行) --- 【核心修改位置】 ---
             zvsStatus = cell(4, 1); switchDetails = cell(4, 1);
             zvsAllOk = true; swData = allValues(1:12, :); 
             for k = 1:4
                 baseIdx = (k-1)*3;
                 dri = swData(baseIdx+1, :); vds = swData(baseIdx+2, :); isw = swData(baseIdx+3, :);
+                
+                % ZVS 检测 (上升沿)
                 risingEdges = find(diff(dri > 0.5) == 1);
                 if isempty(risingEdges), v_turnon = 999; else, v_turnon = max(vds(risingEdges)); end
                 if v_turnon < 20, zvsStatus{k}.status = 'ZVS OK'; else, zvsAllOk = false; zvsStatus{k}.status = sprintf('LOST(%.1fV)', v_turnon); end
-                switchDetails{k} = struct('I_off', mean(isw), 'I_rms', sqrt(mean(isw.^2)));
+                
+                % I_off 检测 (下降沿瞬时值)
+                fallingEdges = find(diff(dri > 0.5) == -1);
+                if isempty(fallingEdges)
+                    curr_I_off = 0; 
+                else
+                    % 取最后一个周期的关断瞬时电流
+                    curr_I_off = isw(fallingEdges(end)); 
+                end
+                
+                % 封装：I_off 存储瞬时值，I_rms 存储有效值
+                switchDetails{k} = struct('I_off', curr_I_off, 'I_rms', sqrt(mean(isw.^2)));
             end
+            % -----------------------------------------
             
             % 谐振腔参数 (13-17行)
             resonantCheck = cell(5, 1);
@@ -77,6 +91,7 @@ function simulate_plecs_direct_multi()
         rethrow(err);
     end
 end
+
 
 function save_results_to_excel(filename, data)
     try
