@@ -377,6 +377,63 @@
       height: 120px;
     }
     
+    /* 热仿真设置区域 */
+    .thermal-settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 0;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 8px;
+    }
+    
+    .thermal-settings-row .toggle-switch {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .thermal-settings-row .toggle-switch input[type="checkbox"] {
+      width: 40px;
+      height: 20px;
+    }
+    
+    .thermal-settings-row .toggle-switch label {
+      font-size: 12px;
+      color: #374151;
+      font-weight: 500;
+    }
+    
+    .thermal-settings-row .tvj-input-group {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .thermal-settings-row #tvj-input {
+      width: 60px;
+      padding: 6px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .thermal-settings-row #tvj-input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+    
+    .thermal-settings-row .tvj-unit {
+      font-size: 11px;
+      color: #6b7280;
+    }
+    
     /* 工况面板 */
     .input-panel {
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -676,8 +733,24 @@
             <div class="curve-card-header">
               <h3 class="curve-card-title">🛠️ 工具</h3>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 12px; padding: 10px 0;">
-              <button id="btn-import-datasheet" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            <div style="display: flex; flex-direction: column; gap: 10px; padding: 10px 0;">
+              <button id="btn-import-mos-pri" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                🔌 导入原边 MOSFET 模型
+              </button>
+              <button id="btn-import-mos-sec" class="btn btn-outline" style="width: 100%; justify-content: center;">
+                🔌 导入副边 MOSFET 模型
+              </button>
+              <div class="thermal-settings-row">
+                <div class="toggle-switch">
+                  <input type="checkbox" id="thermal-sim-enable">
+                  <label for="thermal-sim-enable">热仿真</label>
+                </div>
+                <div class="tvj-input-group">
+                  <input type="number" id="tvj-input" value="130" step="1" placeholder="Tvj">
+                  <span class="tvj-unit">℃</span>
+                </div>
+              </div>
+              <button id="btn-import-datasheet" class="btn btn-outline" style="width: 100%; justify-content: center;">
                 📄 导入规格书
               </button>
               <button id="btn-webplot" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="window.open('https://apps.automeris.io/wpd4/', '_blank')">
@@ -685,9 +758,11 @@
               </button>
             </div>
             <div class="curve-chart-wrapper" style="background: transparent; display: flex; align-items: center; justify-content: center;">
-              <div style="text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.6;">
-                <p style="margin: 0 0 8px 0;">💡 提示</p>
-                <p style="margin: 0;">使用规格书或<br>WebPlotDigitizer 提取数据</p>
+              <div style="text-align: center; color: #9ca3af; font-size: 11px; line-height: 1.5;">
+                <p style="margin: 0 0 6px 0; font-weight: 600;">💡 MOSFET 映射</p>
+                <p style="margin: 0 0 4px 0;">FETD-FETD3: 原边 (4 个)</p>
+                <p style="margin: 0 0 4px 0;">FETD4-FETD7: 副边 (4 个)</p>
+                <p style="margin: 6px 0 0 0; font-size: 10px; color: #6b7280;">模型路径将自动保存</p>
               </div>
             </div>
           </div>

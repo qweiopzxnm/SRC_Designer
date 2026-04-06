@@ -69,8 +69,6 @@
         </div>
         <div class="button-group">
           <button id="btn-calculate" class="btn btn-primary">🔧 计算</button>
-          <button id="btn-plecs" class="btn btn-outline">🔌 导出 PLECS 参数</button>
-          <button id="btn-simulate" class="btn btn-outline">▶️ 运行 PLECS 仿真</button>
           <button id="btn-reset" class="btn btn-outline">🔄 重置</button>
         </div>
       </section>
@@ -205,107 +203,6 @@
           <pre id="design-report"></pre>
         </div>
 
-        <!-- PLECS 仿真结果 -->
-        <div class="result-section" id="plecs-results" style="display: none;">
-          <h3>🔌 PLECS 仿真结果</h3>
-
-          <!-- ZVS 状态分析 -->
-          <h4 style="margin-top: 20px;">🔀 ZVS 状态分析</h4>
-          <div class="result-grid" id="zvs-results-grid">
-            <div class="result-item">
-              <span class="label">H1 ZVS 状态</span>
-              <span class="value" id="zvs-H1">-</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H2 ZVS 状态</span>
-              <span class="value" id="zvs-H2">-</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H3 ZVS 状态</span>
-              <span class="value" id="zvs-H3">-</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H4 ZVS 状态</span>
-              <span class="value" id="zvs-H4">-</span>
-            </div>
-          </div>
-
-          <!-- 开关管详细参数 -->
-          <h4 style="margin-top: 20px;">📊 开关管详细参数</h4>
-          <div class="result-grid" id="switch-details-grid">
-            <div class="result-item">
-              <span class="label">H1 关断电流 I_off</span>
-              <span class="value" id="sw-H1-Ioff">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H1 电流有效值 I_RMS</span>
-              <span class="value" id="sw-H1-Irms">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H2 关断电流 I_off</span>
-              <span class="value" id="sw-H2-Ioff">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H2 电流有效值 I_RMS</span>
-              <span class="value" id="sw-H2-Irms">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H3 关断电流 I_off</span>
-              <span class="value" id="sw-H3-Ioff">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H3 电流有效值 I_RMS</span>
-              <span class="value" id="sw-H3-Irms">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H4 关断电流 I_off</span>
-              <span class="value" id="sw-H4-Ioff">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">H4 电流有效值 I_RMS</span>
-              <span class="value" id="sw-H4-Irms">-</span>
-              <span class="unit">A</span>
-            </div>
-          </div>
-
-          <!-- 谐振腔参数 -->
-          <h4 style="margin-top: 20px;">🔄 谐振腔参数 (ResonantCheck)</h4>
-          <div class="result-grid" id="resonant-results-grid">
-            <div class="result-item">
-              <span class="label">VCrp (RMS/Max/Min)</span>
-              <span class="value" id="res-VCrp">-</span>
-              <span class="unit">V</span>
-            </div>
-            <div class="result-item">
-              <span class="label">I_Lrp (RMS/Max/Min)</span>
-              <span class="value" id="res-ILrp">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">I_Lm (RMS/Max/Min)</span>
-              <span class="value" id="res-ILm">-</span>
-              <span class="unit">A</span>
-            </div>
-            <div class="result-item">
-              <span class="label">VCrs (RMS/Max/Min)</span>
-              <span class="value" id="res-VCrs">-</span>
-              <span class="unit">V</span>
-            </div>
-            <div class="result-item">
-              <span class="label">I_Lrs (RMS/Max/Min)</span>
-              <span class="value" id="res-ILrs">-</span>
-              <span class="unit">A</span>
-            </div>
-          </div>
-
-        </div>
       </section>
     </main>
 

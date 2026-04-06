@@ -17,6 +17,18 @@ const LLCVerifier = {
     Ns_cap: null
   },
   
+  // MOSFET 模型文件路径
+  mosfetModels: {
+    pri: null,  // 原边 MOSFET 模型路径
+    sec: null   // 副边 MOSFET 模型路径
+  },
+  
+  // 热仿真设置
+  thermalSettings: {
+    enabled: false,  // 热仿真开关
+    Tvj: 130         // 结温 (℃)
+  },
+  
   // 工况列表
   conditions: [],
   
@@ -128,6 +140,31 @@ const LLCVerifier = {
     document.getElementById('btn-save-curves').addEventListener('click', () => this.saveCurvesConfig());
     document.getElementById('btn-load-curves').addEventListener('click', () => this.loadCurvesConfig());
     document.getElementById('btn-import-datasheet').addEventListener('click', () => this.importDatasheet());
+    
+    // MOSFET 模型导入
+    document.getElementById('btn-import-mos-pri').addEventListener('click', () => this.importMosfetModel('pri'));
+    document.getElementById('btn-import-mos-sec').addEventListener('click', () => this.importMosfetModel('sec'));
+    
+    // 热仿真开关和 Tvj 输入
+    const thermalEnableCheckbox = document.getElementById('thermal-sim-enable');
+    if (thermalEnableCheckbox) {
+      thermalEnableCheckbox.addEventListener('change', () => {
+        this.thermalSettings.enabled = thermalEnableCheckbox.checked;
+        this.saveThermalSettings();
+        this.showStatus(thermalEnableCheckbox.checked ? '✅ 热仿真已启用' : '⚠️ 热仿真已禁用', thermalEnableCheckbox.checked ? 'success' : 'warning');
+      });
+    }
+    
+    const tvjInput = document.getElementById('tvj-input');
+    if (tvjInput) {
+      tvjInput.addEventListener('input', () => {
+        this.thermalSettings.Tvj = parseFloat(tvjInput.value) || 130;
+        this.saveThermalSettings();
+      });
+    }
+    
+    // 加载保存的热仿真设置
+    this.loadThermalSettings();
   },
 
   /**
@@ -653,6 +690,14 @@ const LLCVerifier = {
           Np_cap: this.frozenParams.Np_cap || 1,
           Ns_cap: this.frozenParams.Ns_cap || 1
         },
+        mosfetModels: {
+          pri: this.mosfetModels.pri || null,
+          sec: this.mosfetModels.sec || null
+        },
+        thermalSettings: {
+          enabled: this.thermalSettings.enabled,
+          Tvj: this.thermalSettings.Tvj || 130
+        },
         curveDefinitions: this.curveDefinitions,
         curveEnabled: this.curveEnabled,
         conditions: this.conditions,
@@ -713,6 +758,27 @@ const LLCVerifier = {
               Ns_cap: config.frozenParams.Ns_cap || 1
             };
             this.updateFrozenDisplay();
+          }
+          
+          // 加载 MOSFET 模型
+          if (config.mosfetModels) {
+            this.mosfetModels.pri = config.mosfetModels.pri || null;
+            this.mosfetModels.sec = config.mosfetModels.sec || null;
+            localStorage.setItem('llc-verifier-mos-pri', this.mosfetModels.pri || '');
+            localStorage.setItem('llc-verifier-mos-sec', this.mosfetModels.sec || '');
+          }
+          
+          // 加载热仿真设置
+          if (config.thermalSettings) {
+            this.thermalSettings.enabled = config.thermalSettings.enabled || false;
+            this.thermalSettings.Tvj = config.thermalSettings.Tvj || 130;
+            
+            const thermalCheckbox = document.getElementById('thermal-sim-enable');
+            const tvjInput = document.getElementById('tvj-input');
+            if (thermalCheckbox) thermalCheckbox.checked = this.thermalSettings.enabled;
+            if (tvjInput) tvjInput.value = this.thermalSettings.Tvj;
+            
+            this.saveThermalSettings();
           }
           
           // 加载曲线数据
@@ -886,7 +952,7 @@ const LLCVerifier = {
       if (!confirmed) return;
     }
     
-    // 生成 verify_input.json（包含所有曲线参数）
+    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型和热仿真设置）
     const simulationData = {
       frozenParams: {
         Cr_p: this.frozenParams.Cr_p,
@@ -897,6 +963,14 @@ const LLCVerifier = {
         Ns: this.frozenParams.Ns,
         Np_cap: this.frozenParams.Np_cap || 1,
         Ns_cap: this.frozenParams.Ns_cap || 1
+      },
+      mosfetModels: {
+        pri: this.mosfetModels.pri || null,
+        sec: this.mosfetModels.sec || null
+      },
+      thermalSettings: {
+        enabled: this.thermalSettings.enabled,
+        Tvj: this.thermalSettings.Tvj || 130
       },
       curveDefinitions: this.curveDefinitions,
       curveEnabled: this.curveEnabled,
@@ -926,6 +1000,75 @@ const LLCVerifier = {
     );
   },
 
+  /**
+   * 导入 MOSFET 模型
+   */
+  importMosfetModel(side) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.plecs,.xml,.json';
+    
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // 记录文件路径（浏览器安全限制下只能获取文件名）
+      const filePath = file.webkitRelativePath || file.name;
+      
+      if (side === 'pri') {
+        this.mosfetModels.pri = filePath;
+        localStorage.setItem('llc-verifier-mos-pri', filePath);
+        this.showStatus(`✅ 原边 MOSFET 模型已导入：${file.name}`, 'success');
+      } else {
+        this.mosfetModels.sec = filePath;
+        localStorage.setItem('llc-verifier-mos-sec', filePath);
+        this.showStatus(`✅ 副边 MOSFET 模型已导入：${file.name}`, 'success');
+      }
+    };
+    
+    input.click();
+  },
+  
+  /**
+   * 保存热仿真设置
+   */
+  saveThermalSettings() {
+    const settings = {
+      enabled: this.thermalSettings.enabled,
+      Tvj: this.thermalSettings.Tvj
+    };
+    localStorage.setItem('llc-verifier-thermal', JSON.stringify(settings));
+  },
+  
+  /**
+   * 加载热仿真设置
+   */
+  loadThermalSettings() {
+    try {
+      // 加载 MOSFET 模型路径
+      const savedMosPri = localStorage.getItem('llc-verifier-mos-pri');
+      const savedMosSec = localStorage.getItem('llc-verifier-mos-sec');
+      if (savedMosPri) this.mosfetModels.pri = savedMosPri;
+      if (savedMosSec) this.mosfetModels.sec = savedMosSec;
+      
+      // 加载热仿真设置
+      const savedThermal = localStorage.getItem('llc-verifier-thermal');
+      if (savedThermal) {
+        const settings = JSON.parse(savedThermal);
+        this.thermalSettings.enabled = settings.enabled || false;
+        this.thermalSettings.Tvj = settings.Tvj || 130;
+        
+        // 恢复 UI 状态
+        const thermalCheckbox = document.getElementById('thermal-sim-enable');
+        const tvjInput = document.getElementById('tvj-input');
+        if (thermalCheckbox) thermalCheckbox.checked = this.thermalSettings.enabled;
+        if (tvjInput) tvjInput.value = this.thermalSettings.Tvj;
+      }
+    } catch (e) {
+      console.error('加载热仿真设置失败:', e);
+    }
+  },
+  
   /**
    * 导入规格书
    */

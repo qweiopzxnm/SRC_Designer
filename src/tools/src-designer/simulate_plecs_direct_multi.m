@@ -10,11 +10,49 @@ function simulate_plecs_direct_multi()
         conditions = simData.conditions;
         numConditions = length(conditions);
         
+        % 读取 MOSFET 模型和热仿真设置（可选字段）
+        mosfetModels = [];
+        thermalSettings = [];
+        if isfield(simData, 'mosfetModels'), mosfetModels = simData.mosfetModels; end
+        if isfield(simData, 'thermalSettings'), thermalSettings = simData.thermalSettings; end
+        
         % 2. 环境准备
         plecs_toolbox_path = 'C:\Users\m1774\Documents\Plexim\PLECS 4.7 (64 bit)\wbstoolbox';
         if exist(plecs_toolbox_path, 'dir'), addpath(plecs_toolbox_path); end
-        model_name = 'SRC_backup';
+        
+        % 根据热仿真开关选择模型
+        if isfield(thermalSettings, 'enabled') && thermalSettings.enabled
+            model_name = 'SRC_backup_thermal';
+            fprintf('🔥 Thermal Simulation Enabled (Tvj = %.1f°C)\n', thermalSettings.Tvj);
+        else
+            model_name = 'SRC_backup';
+            fprintf('ℹ️ Standard Simulation (Thermal disabled)\n');
+        end
+        
+        % 初始化 PLECS 模型
         plecs('init', model_name);
+        
+        % 设置 MOSFET 模型路径 (Thermal Description Search Path)
+        if isfield(mosfetModels, 'pri') && ~isempty(mosfetModels.pri)
+            priPath = mosfetModels.pri;
+            % 提取目录路径
+            [priDir, ~, ~] = fileparts(priPath);
+            plecs('set', [model_name '/Electrical'], 'ThermalDescriptionSearchPath', priDir);
+            fprintf('📁 Primary MOSFET model path: %s\n', priPath);
+        end
+        if isfield(mosfetModels, 'sec') && ~isempty(mosfetModels.sec)
+            secPath = mosfetModels.sec;
+            [secDir, ~, ~] = fileparts(secPath);
+            plecs('set', [model_name '/Electrical'], 'ThermalDescriptionSearchPath', ...
+                [plecs('get', [model_name '/Electrical'], 'ThermalDescriptionSearchPath') ';' secDir]);
+            fprintf('📁 Secondary MOSFET model path: %s\n', secPath);
+        end
+        
+        % 如果启用热仿真，设置 Tvj 参数
+        if isfield(thermalSettings, 'enabled') && thermalSettings.enabled && isfield(thermalSettings, 'Tvj')
+            plecs('set', [model_name '/Parameters'], 'Tvj', thermalSettings.Tvj);
+            fprintf('🌡️ Tvj set to %.1f°C\n', thermalSettings.Tvj);
+        end
         
         % 3. 循环仿真
         allResults = cell(numConditions, 1);
