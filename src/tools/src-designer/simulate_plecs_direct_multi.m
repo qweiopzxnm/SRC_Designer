@@ -45,7 +45,6 @@ function simulate_plecs_direct_multi()
         thermal_vars_struct = struct();
         if isfield(simData, 'thermalVarsStruct') && ~isempty(simData.thermalVarsStruct)
             thermal_vars_struct = simData.thermalVarsStruct;
-            fprintf('✅ 已从 verify_input.json 加载 thermal_vars_struct (共 %d 个变量)\n', fieldnames(thermal_vars_struct).length);
             % 打印变量名和值
             fn = fieldnames(thermal_vars_struct);
             for i = 1:length(fn)
@@ -370,6 +369,7 @@ function simData = read_verify_json(filename)
     % 3. 提取热仿真设置
     % 包含 enabled (bool) 和 Tvj (数值)
     simData.thermalSettings = decoded.thermalSettings;
+    simData.thermalVarsStruct = decoded.thermalVarsStruct;
 end
 
 %% 定义解析模型函数
