@@ -41,30 +41,22 @@ function simulate_plecs_direct_multi()
             fprintf('ℹ️ Thermal settings disabled or missing, using default 25°C\n');
         end
         
-        % --- 步骤 A: 解析 XML 获取变量名 ---
-        varsPri = getThermalFileVariables(mosfetModels.pri); 
-        varsSec = getThermalFileVariables(mosfetModels.sec);
-        allVars = [varsPri, varsSec];
-        [~, idx] = unique({allVars.Name});
-        uniqueVars = allVars(idx);
-        
-        % --- 步骤 B: 弹出对话框获取用户输入 ---
-        thermal_vars_struct = struct(); % 初始化你要的结构体
-        if ~isempty(uniqueVars)
-            prompt = strcat('变量: ', {uniqueVars.Name});
-            dlgTitle = 'PLECS 热模型参数输入';
-            defInput = {uniqueVars.DefaultValue};
-            defInput(cellfun(@isempty, defInput)) = {'0'}; % 缺失默认值补0
-            
-            answer = inputdlg(prompt, dlgTitle, [1 50], defInput);
-            if isempty(answer), error('用户取消仿真'); end
-            
-            % 动态构建 thermal_vars_struct
-            for i = 1:length(uniqueVars)
-                thermal_vars_struct.(uniqueVars(i).Name) = str2double(answer{i});
+        % --- 步骤 A: 从 JSON 中读取 thermal_vars_struct (前端已解析并让用户填写) ---
+        thermal_vars_struct = struct();
+        if isfield(simData, 'thermalVarsStruct') && ~isempty(simData.thermalVarsStruct)
+            thermal_vars_struct = simData.thermalVarsStruct;
+            fprintf('✅ 已从 verify_input.json 加载 thermal_vars_struct (共 %d 个变量)\n', fieldnames(thermal_vars_struct).length);
+            % 打印变量名和值
+            fn = fieldnames(thermal_vars_struct);
+            for i = 1:length(fn)
+                fprintf('   %s = %.4g\n', fn{i}, thermal_vars_struct.(fn{i}));
             end
+        else
+            % 如果没有 thermalVarsStruct，使用空结构体（不弹窗）
+            fprintf('⚠️ 警告：verify_input.json 中未找到 thermalVarsStruct 字段\n');
+            fprintf('   请在前端验证页面导入 MOSFET 模型并填写变量值后重新生成 JSON\n');
         end
-
+        
         th_pri_ref = ['file:', mosfetModels.pri];
         th_sec_ref = ['file:', mosfetModels.sec];
 

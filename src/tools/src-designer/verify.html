@@ -434,6 +434,50 @@
       color: #6b7280;
     }
     
+    /* 热模型变量输入样式 */
+    .thermal-var-input {
+      display: grid;
+      grid-template-columns: 1fr 80px;
+      gap: 6px;
+      align-items: center;
+      background: white;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .thermal-var-input .var-name {
+      font-size: 11px;
+      color: #374151;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .thermal-var-input .var-value {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .thermal-var-input .var-value:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+    
+    .thermal-var-input .var-default {
+      font-size: 10px;
+      color: #9ca3af;
+      text-align: right;
+    }
+    
     /* 工况面板 */
     .input-panel {
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -737,9 +781,15 @@
               <button id="btn-import-mos-pri" class="btn btn-primary" style="width: 100%; justify-content: center;">
                 🔌 导入原边 MOSFET 模型
               </button>
-              <button id="btn-import-mos-sec" class="btn btn-outline" style="width: 100%; justify-content: center;">
+              <input type="text" id="mos-pri-path-input" placeholder="原边模型绝对路径" 
+                     style="width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; box-sizing: border-box;"
+                     onchange="LLCVerifier.updateMosfetPath('pri', this.value)">
+              <button id="btn-import-mos-sec" class="btn btn-outline" style="width: 100%; justify-content: center; margin-top: 6px;">
                 🔌 导入副边 MOSFET 模型
               </button>
+              <input type="text" id="mos-sec-path-input" placeholder="副边模型绝对路径" 
+                     style="width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; box-sizing: border-box;"
+                     onchange="LLCVerifier.updateMosfetPath('sec', this.value)">
               <div class="thermal-settings-row">
                 <div class="toggle-switch">
                   <input type="checkbox" id="thermal-sim-enable">
@@ -748,6 +798,18 @@
                 <div class="tvj-input-group">
                   <input type="number" id="tvj-input" value="130" step="1" placeholder="Tvj">
                   <span class="tvj-unit">℃</span>
+                </div>
+              </div>
+              
+              <!-- 热模型变量输入区域 -->
+              <div id="thermal-vars-panel" style="display: none; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; border: 1px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h4 style="margin: 0; color: #92400e; font-size: 13px;">🔧 热模型变量 (thermal_vars_struct)</h4>
+                  <button id="btn-clear-thermal-vars" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">清空</button>
+                </div>
+                <p style="margin: 0 0 8px 0; font-size: 11px; color: #78350f;">从 MOSFET 模型 XML 中自动解析的变量，请填入数值：</p>
+                <div id="thermal-vars-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
+                  <!-- 动态生成的变量输入框 -->
                 </div>
               </div>
               <button id="btn-import-datasheet" class="btn btn-outline" style="width: 100%; justify-content: center;">

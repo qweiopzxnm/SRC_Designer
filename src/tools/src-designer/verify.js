@@ -29,6 +29,14 @@ const LLCVerifier = {
     Tvj: 130         // 结温 (℃)
   },
   
+  // 热模型变量结构体 (从 XML 解析)
+  thermalVarsStruct: {},
+  
+  // 解析出的热模型变量列表 (带默认值) - 原边
+  thermalVarsListPri: [],
+  // 解析出的热模型变量列表 (带默认值) - 副边
+  thermalVarsListSec: [],
+  
   // 工况列表
   conditions: [],
   
@@ -124,6 +132,8 @@ const LLCVerifier = {
     this.syncFrozenParams();
     this.initAllCurves();
     this.addCondition();
+    this.loadThermalVars();
+    this.loadMosfetPaths();
   },
 
   /**
@@ -165,6 +175,53 @@ const LLCVerifier = {
     
     // 加载保存的热仿真设置
     this.loadThermalSettings();
+    
+    // 热模型变量清空按钮
+    const btnClearThermalVars = document.getElementById('btn-clear-thermal-vars');
+    if (btnClearThermalVars) {
+      btnClearThermalVars.addEventListener('click', () => this.clearThermalVars());
+    }
+  },
+  
+  /**
+   * 加载保存的 MOSFET 路径显示
+   */
+  loadMosfetPaths() {
+    const savedMosPri = localStorage.getItem('llc-verifier-mos-pri');
+    const savedMosSec = localStorage.getItem('llc-verifier-mos-sec');
+    
+    if (savedMosPri) {
+      this.mosfetModels.pri = savedMosPri;
+      const priInput = document.getElementById('mos-pri-path-input');
+      if (priInput) priInput.value = savedMosPri;
+    }
+    if (savedMosSec) {
+      this.mosfetModels.sec = savedMosSec;
+      const secInput = document.getElementById('mos-sec-path-input');
+      if (secInput) secInput.value = savedMosSec;
+    }
+    
+    // 加载保存的热模型变量
+    this.loadThermalVars();
+  },
+  
+  /**
+   * 手动更新 MOSFET 路径
+   */
+  updateMosfetPath(side, path) {
+    if (!path || !path.trim()) return;
+    
+    const finalPath = path.trim();
+    
+    if (side === 'pri') {
+      this.mosfetModels.pri = finalPath;
+      localStorage.setItem('llc-verifier-mos-pri', finalPath);
+      this.showStatus(`✅ 原边模型路径已更新`, 'success');
+    } else {
+      this.mosfetModels.sec = finalPath;
+      localStorage.setItem('llc-verifier-mos-sec', finalPath);
+      this.showStatus(`✅ 副边模型路径已更新`, 'success');
+    }
   },
 
   /**
@@ -698,6 +755,9 @@ const LLCVerifier = {
           enabled: this.thermalSettings.enabled,
           Tvj: this.thermalSettings.Tvj || 130
         },
+        thermalVarsStruct: this.thermalVarsStruct,
+        thermalVarsListPri: this.thermalVarsListPri,
+        thermalVarsListSec: this.thermalVarsListSec,
         curveDefinitions: this.curveDefinitions,
         curveEnabled: this.curveEnabled,
         conditions: this.conditions,
@@ -780,6 +840,18 @@ const LLCVerifier = {
             
             this.saveThermalSettings();
           }
+          
+          // 加载热模型变量
+          if (config.thermalVarsStruct) {
+            this.thermalVarsStruct = config.thermalVarsStruct;
+          }
+          if (config.thermalVarsListPri) {
+            this.thermalVarsListPri = config.thermalVarsListPri;
+          }
+          if (config.thermalVarsListSec) {
+            this.thermalVarsListSec = config.thermalVarsListSec;
+          }
+          this.renderThermalVarsPanel();
           
           // 加载曲线数据
           if (config.curveDefinitions) {
@@ -952,7 +1024,7 @@ const LLCVerifier = {
       if (!confirmed) return;
     }
     
-    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型和热仿真设置）
+    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置和热模型变量）
     const simulationData = {
       frozenParams: {
         Cr_p: this.frozenParams.Cr_p,
@@ -972,6 +1044,7 @@ const LLCVerifier = {
         enabled: this.thermalSettings.enabled,
         Tvj: this.thermalSettings.Tvj || 130
       },
+      thermalVarsStruct: this.thermalVarsStruct,  // 热模型变量结构体
       curveDefinitions: this.curveDefinitions,
       curveEnabled: this.curveEnabled,
       conditions: this.conditions,
@@ -1004,29 +1077,242 @@ const LLCVerifier = {
    * 导入 MOSFET 模型
    */
   importMosfetModel(side) {
+    // 用户选择文件进行解析
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.plecs,.xml,.json';
+    input.accept = '.xml,.plecs';
     
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
-      // 记录文件路径（浏览器安全限制下只能获取文件名）
-      const filePath = file.webkitRelativePath || file.name;
-      
-      if (side === 'pri') {
-        this.mosfetModels.pri = filePath;
-        localStorage.setItem('llc-verifier-mos-pri', filePath);
-        this.showStatus(`✅ 原边 MOSFET 模型已导入：${file.name}`, 'success');
-      } else {
-        this.mosfetModels.sec = filePath;
-        localStorage.setItem('llc-verifier-mos-sec', filePath);
-        this.showStatus(`✅ 副边 MOSFET 模型已导入：${file.name}`, 'success');
-      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const xmlContent = event.target.result;
+          const vars = this.parseMOSFETXML(xmlContent);
+          
+          // 浏览器安全限制：无法获取真实绝对路径，需要用户手动补充
+          const fileName = file.name;
+          const savedPath = side === 'pri' ? this.mosfetModels.pri : this.mosfetModels.sec;
+          
+          const fullPath = prompt(
+            `📁 ${side === 'pri' ? '原边' : '副边'} MOSFET 模型文件已解析\n\n` +
+            `✅ 成功解析 ${vars.length} 个变量\n\n` +
+            `⚠️ 由于浏览器安全限制，需要您手动填写文件的完整绝对路径：\n\n` +
+            `例如：C:/Users/m1774/Desktop/src-designer/${fileName}\n` +
+            `或：/home/user/projects/src-designer/${fileName}\n\n` +
+            `💡 提示：请使用正斜杠 / 或双反斜杠 \\\\`,
+            savedPath && savedPath !== fileName ? savedPath : fileName
+          );
+          
+          if (fullPath && fullPath.trim()) {
+            // 统一路径格式：将反斜杠转为正斜杠
+            const finalPath = fullPath.trim().replace(/\\\\/g, '/');
+            
+            if (side === 'pri') {
+              this.mosfetModels.pri = finalPath;
+              localStorage.setItem('llc-verifier-mos-pri', finalPath);
+              const priInput = document.getElementById('mos-pri-path-input');
+              if (priInput) priInput.value = finalPath;
+            } else {
+              this.mosfetModels.sec = finalPath;
+              localStorage.setItem('llc-verifier-mos-sec', finalPath);
+              const secInput = document.getElementById('mos-sec-path-input');
+              if (secInput) secInput.value = finalPath;
+            }
+            
+            // 存储变量列表（原副边分开）
+            if (side === 'pri') {
+              this.thermalVarsListPri = vars;
+              vars.forEach(v => {
+                if (this.thermalVarsStruct[v.name] === undefined) {
+                  this.thermalVarsStruct[v.name] = parseFloat(v.defaultValue) || 0;
+                }
+              });
+            } else {
+              this.thermalVarsListSec = vars;
+              vars.forEach(v => {
+                if (this.thermalVarsStruct[v.name] === undefined) {
+                  this.thermalVarsStruct[v.name] = parseFloat(v.defaultValue) || 0;
+                }
+              });
+            }
+            
+            // 渲染变量输入面板（原副边分开显示）
+            this.renderThermalVarsPanel();
+            this.saveThermalVars();
+            
+            this.showStatus(`✅ ${side === 'pri' ? '原边' : '副边'}模型已导入：${finalPath}`, 'success');
+          }
+        } catch (error) {
+          this.showStatus('❌ 解析 XML 失败：' + error.message, 'error');
+        }
+      };
+      reader.onerror = () => this.showStatus('❌ 读取文件失败', 'error');
+      reader.readAsText(file);
     };
     
     input.click();
+  },
+  
+  /**
+   * 解析 MOSFET XML 文件，提取 Variable 节点
+   */
+  parseMOSFETXML(xmlContent) {
+    const vars = [];
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+    
+    // 检查解析错误
+    const parseError = xmlDoc.querySelector('parsererror');
+    if (parseError) {
+      throw new Error('XML 解析失败：' + parseError.textContent);
+    }
+    
+    // 查找所有 Variable 节点
+    const varNodes = xmlDoc.getElementsByTagName('Variable');
+    
+    for (let i = 0; i < varNodes.length; i++) {
+      const varNode = varNodes[i];
+      
+      // 提取 Name
+      const nameNodes = varNode.getElementsByTagName('Name');
+      if (nameNodes.length === 0) continue;
+      
+      const varName = nameNodes[0].textContent.trim();
+      
+      // 提取 DefaultValue（可选）
+      let defaultValue = '';
+      const defaultNodes = varNode.getElementsByTagName('DefaultValue');
+      if (defaultNodes.length > 0 && defaultNodes[0].firstChild) {
+        defaultValue = defaultNodes[0].textContent.trim();
+      }
+      
+      vars.push({
+        name: varName,
+        defaultValue: defaultValue || '0'
+      });
+    }
+    
+    return vars;
+  },
+
+  
+  /**
+   * 渲染热模型变量输入面板（原副边分开显示）
+   */
+  renderThermalVarsPanel() {
+    const panel = document.getElementById('thermal-vars-panel');
+    const container = document.getElementById('thermal-vars-container');
+    
+    if (!panel || !container) return;
+    
+    const hasPri = this.thermalVarsListPri && this.thermalVarsListPri.length > 0;
+    const hasSec = this.thermalVarsListSec && this.thermalVarsListSec.length > 0;
+    
+    if (!hasPri && !hasSec) {
+      panel.style.display = 'none';
+      return;
+    }
+    
+    panel.style.display = 'block';
+    container.innerHTML = '';
+    
+    // 原边变量区域
+    if (hasPri) {
+      const priHeader = document.createElement('div');
+      priHeader.style.cssText = 'grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #dc2626; margin: 8px 0 4px 0; padding: 4px 8px; background: #fee2e2; border-radius: 4px;';
+      priHeader.textContent = '🔌 原边 MOSFET 变量';
+      container.appendChild(priHeader);
+      
+      this.thermalVarsListPri.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'thermal-var-input';
+        div.innerHTML = `
+          <div class="var-name" title="${v.name}">${v.name}</div>
+          <input type="number" class="var-value" 
+                 value="${this.thermalVarsStruct[v.name] !== undefined ? this.thermalVarsStruct[v.name] : (parseFloat(v.defaultValue) || 0)}" 
+                 step="0.01" 
+                 placeholder="值"
+                 onchange="LLCVerifier.updateThermalVar('${v.name}', parseFloat(this.value) || 0)">
+        `;
+        container.appendChild(div);
+      });
+    }
+    
+    // 副边变量区域
+    if (hasSec) {
+      const secHeader = document.createElement('div');
+      secHeader.style.cssText = 'grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #16a34a; margin: 12px 0 4px 0; padding: 4px 8px; background: #dcfce7; border-radius: 4px;';
+      secHeader.textContent = '🔌 副边 MOSFET 变量';
+      container.appendChild(secHeader);
+      
+      this.thermalVarsListSec.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'thermal-var-input';
+        div.innerHTML = `
+          <div class="var-name" title="${v.name}">${v.name}</div>
+          <input type="number" class="var-value" 
+                 value="${this.thermalVarsStruct[v.name] !== undefined ? this.thermalVarsStruct[v.name] : (parseFloat(v.defaultValue) || 0)}" 
+                 step="0.01" 
+                 placeholder="值"
+                 onchange="LLCVerifier.updateThermalVar('${v.name}', parseFloat(this.value) || 0)">
+        `;
+        container.appendChild(div);
+      });
+    }
+  },
+  
+  /**
+   * 更新热模型变量值
+   */
+  updateThermalVar(name, value) {
+    this.thermalVarsStruct[name] = value;
+    this.saveThermalVars();
+  },
+  
+  /**
+   * 保存热模型变量
+   */
+  saveThermalVars() {
+    localStorage.setItem('llc-verifier-thermal-vars', JSON.stringify({
+      varsListPri: this.thermalVarsListPri,
+      varsListSec: this.thermalVarsListSec,
+      varsStruct: this.thermalVarsStruct
+    }));
+  },
+  
+  /**
+   * 加载热模型变量
+   */
+  loadThermalVars() {
+    try {
+      const saved = localStorage.getItem('llc-verifier-thermal-vars');
+      if (saved) {
+        const data = JSON.parse(saved);
+        this.thermalVarsListPri = data.varsListPri || [];
+        this.thermalVarsListSec = data.varsListSec || [];
+        this.thermalVarsStruct = data.varsStruct || {};
+        this.renderThermalVarsPanel();
+      }
+    } catch (e) {
+      console.error('加载热模型变量失败:', e);
+    }
+  },
+  
+  /**
+   * 清空热模型变量
+   */
+  clearThermalVars() {
+    if (confirm('确定要清空所有热模型变量吗？')) {
+      this.thermalVarsListPri = [];
+      this.thermalVarsListSec = [];
+      this.thermalVarsStruct = {};
+      this.saveThermalVars();
+      this.renderThermalVarsPanel();
+      this.showStatus('🗑️ 已清空热模型变量', 'success');
+    }
   },
   
   /**
