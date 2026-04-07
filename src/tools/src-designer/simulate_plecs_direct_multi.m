@@ -21,20 +21,14 @@ function simulate_plecs_direct_multi()
         % 尝试从 JSON 读取自定义路径
         if isfield(simData, 'plecsToolboxPath') && ~isempty(simData.plecsToolboxPath)
             plecs_toolbox_path = simData.plecsToolboxPath;
-            fprintf('✅ 使用自定义 PLECS 路径：%s
-', plecs_toolbox_path);
+            fprintf('✅ 使用自定义 PLECS 路径：%s', plecs_toolbox_path);
         else
-            fprintf('ℹ️ 使用默认 PLECS 路径：%s
-', plecs_toolbox_path);
+            fprintf('ℹ️ Error：未找到PLECS路径');
         end
         
         if exist(plecs_toolbox_path, 'dir')
             addpath(plecs_toolbox_path);
-            fprintf('✅ PLECS 工具箱已加载
-');
-        else
-            fprintf('⚠️ 警告：PLECS 路径不存在，尝试继续...
-');
+            fprintf('✅ PLECS 工具箱已加载');
         end
         
         % 根据热仿真开关选择模型
@@ -387,6 +381,7 @@ function simData = read_verify_json(filename)
     % 包含 enabled (bool) 和 Tvj (数值)
     simData.thermalSettings = decoded.thermalSettings;
     simData.thermalVarsStruct = decoded.thermalVarsStruct;
+    simData.plecsToolboxPath = decoded.plecsToolboxPath;
 end
 
 %% 定义解析模型函数

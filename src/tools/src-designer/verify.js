@@ -142,7 +142,7 @@ const LLCVerifier = {
     this.loadThermalVars();
     this.loadMosfetPaths();
   },
-
+  
   /**
    * 绑定事件
    */
@@ -286,7 +286,7 @@ const LLCVerifier = {
         display.textContent = '📁 ' + this.plecsToolboxPath;
         display.style.color = '#16a34a';
       } else {
-        display.textContent = '⚠️ 未设置 PLECS 路径，将使用默认路径 | PLECS path not set, using default';
+        display.textContent = '⚠️ 未设置 PLECS 路径，存在错误 | PLECS path not set, error';
         display.style.color = '#ca8a04';
       }
     }
@@ -421,8 +421,8 @@ const LLCVerifier = {
     document.getElementById('btn-lock-params').textContent = '🔓 解锁参数';
     document.getElementById('btn-lock-params').onclick = () => this.unlockParams();
     
-    // 使冻结参数可编辑
-    this.enableFrozenParamsEdit();
+    // 禁用冻结参数编辑
+    this.disableFrozenParamsEdit();
     
     localStorage.setItem('llc-verifier-params-locked', 'true');
     this.showStatus('🔒 参数已锁定，现在可以手动修改 | Parameters locked, manual edit enabled', 'success');
@@ -437,8 +437,8 @@ const LLCVerifier = {
     document.getElementById('btn-lock-params').textContent = '🔒 锁定参数';
     document.getElementById('btn-lock-params').onclick = () => this.lockParams();
     
-    // 禁用冻结参数编辑
-    this.disableFrozenParamsEdit();
+    // 使冻结参数可编辑
+    this.enableFrozenParamsEdit();
     
     localStorage.removeItem('llc-verifier-params-locked');
     this.showStatus('🔓 参数已解锁，将自动从设计页同步 | Parameters unlocked, will auto-sync from design page', 'success');

@@ -120,16 +120,6 @@ const LLCDesigner = {
       // 2. 计算实际选定参数 (Actpara) - 基于用户指定电容容量、电感分辨率和 Lm
       const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
 
-      // 3. 效率估算
-      const efficiency = LLCCalculator.estimateEfficiency(dsn, act);
-
-      // 4. 生成报告
-      const report = LLCCalculator.generateReport({
-        dsn,
-        act,
-        efficiency
-      });
-
       // 保存结果
       this.currentResults = {
         input,
@@ -139,9 +129,7 @@ const LLCDesigner = {
           Np: dsn.Np,  // 初始时使用设计页的 Np/Ns
           Ns: dsn.Ns,
           Tratio: dsn.Tratio
-        },
-        efficiency,
-        report
+        }
       };
 
       // 更新 UI
