@@ -770,6 +770,7 @@
             <span class="unit">颗</span>
           </div>
         </div>
+        
         <div class="verify-actions" style="border-top: none; padding-top: 16px; margin-top: 16px;">
           <button id="btn-sync-frozen" class="btn btn-primary">🔄 更新冻结参数
             <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Update Frozen Parameters</span>
@@ -847,14 +848,6 @@
                   <!-- 动态生成的变量输入框 -->
                 </div>
               </div>
-              <button id="btn-import-datasheet" class="btn btn-outline" style="width: 100%; justify-content: center;">
-                📄 导入谐振电容规格书
-                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Import Resonant Cap Datasheet</span>
-              </button>
-              <button id="btn-webplot" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="window.open('https://apps.automeris.io/wpd4/', '_blank')">
-                📈 描点工具WebPlotDigitizer
-                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Open WebPlotDigitizer Tool</span>
-              </button>
             </div>
             <div class="curve-chart-wrapper" style="background: transparent; display: flex; align-items: center; justify-content: center;">
               <div style="text-align: center; color: #9ca3af; font-size: 11px; line-height: 1.5;">
@@ -862,6 +855,46 @@
                 <p style="margin: 0 0 4px 0;">FETD-FETD3: 原边 (4 个) | Primary (4)</p>
                 <p style="margin: 0 0 4px 0;">FETD4-FETD7: 副边 (4 个) | Secondary (4)</p>
                 <p style="margin: 6px 0 0 0; font-size: 10px; color: #6b7280;">模型路径将自动保存 | Model paths auto-saved</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 电容规格书与裕量设置 -->
+          <div class="curve-card">
+            <div class="curve-card-header">
+              <h3 class="curve-card-title">
+                📄 电容规格书与裕量
+                <span class="curve-card-title-en">Capacitor Datasheet & Margins</span>
+              </h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; padding: 10px 0;">
+              <button id="btn-import-datasheet" class="btn btn-outline" style="width: 100%; justify-content: center;">
+                📄 导入谐振电容规格书
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Import Resonant Cap Datasheet</span>
+              </button>
+              <button id="btn-webplot" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="window.open('https://apps.automeris.io/wpd4/', '_blank')">
+                📈 描点工具 WebPlotDigitizer
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Open WebPlotDigitizer Tool</span>
+              </button>
+              
+              <div style="border-top: 1px solid #e5e7eb; margin: 8px 0;"></div>
+              
+              <div>
+                <label style="display: block; font-size: 11px; color: #374151; margin-bottom: 4px;">
+                  电压裕量 (%) | Voltage Margin
+                  <span style="display: block; font-size: 9px; color: #9ca3af; margin-top: 1px;">电容耐压设计裕量</span>
+                </label>
+                <input type="number" id="voltage-margin" value="20" step="1" min="0" max="100" 
+                       style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
+              </div>
+              
+              <div>
+                <label style="display: block; font-size: 11px; color: #374151; margin-bottom: 4px;">
+                  电流裕量 (%) | Current Margin
+                  <span style="display: block; font-size: 9px; color: #9ca3af; margin-top: 1px;">电容电流设计裕量</span>
+                </label>
+                <input type="number" id="current-margin" value="20" step="1" min="0" max="100" 
+                       style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
               </div>
             </div>
           </div>
@@ -1053,8 +1086,11 @@
           <button id="btn-import-all" class="btn btn-primary">📥 一键导入全部
             <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Import All (Config + Curves)</span>
           </button>
+          <button id="btn-build-params" class="btn btn-outline">📝 建立仿真参数
+            <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Build Simulation Parameters</span>
+          </button>
           <button id="btn-run-simulation" class="btn btn-primary">▶️ 开始仿真
-            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Run Simulation</span>
+            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Run Simulation (Execute BAT)</span>
           </button>
           <button id="btn-clear-all" class="btn btn-outline">🗑️ 清空全部
             <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Clear All</span>

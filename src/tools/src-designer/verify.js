@@ -29,6 +29,12 @@ const LLCVerifier = {
   // PLECS 工具箱路径
   plecsToolboxPath: null,
   
+  // 裕量设置
+  marginSettings: {
+    voltageMargin: 20,  // 电压裕量 (%)
+    currentMargin: 20   // 电流裕量 (%)
+  },
+  
   // 热仿真设置
   thermalSettings: {
     enabled: false,  // 热仿真开关
@@ -148,12 +154,27 @@ const LLCVerifier = {
    */
   bindEvents() {
     document.getElementById('btn-sync-frozen').addEventListener('click', () => this.syncFrozenParams());
-    document.getElementById('btn-lock-params').addEventListener('click', () => this.lockParams());
+    document.getElementById('btn-lock-params').addEventListener('click', () => this.toggleLockParams());
     document.getElementById('btn-add-condition').addEventListener('click', () => this.addCondition());
     document.getElementById('btn-save-config').addEventListener('click', () => this.saveConfig());
     document.getElementById('btn-load-config').addEventListener('click', () => this.loadConfig());
     document.getElementById('btn-import-all').addEventListener('click', () => this.importAllConfig());
+    document.getElementById('btn-build-params').addEventListener('click', () => this.buildParams());
     document.getElementById('btn-run-simulation').addEventListener('click', () => this.runSimulation());
+    
+    // 裕量输入框
+    const voltageMarginInput = document.getElementById('voltage-margin');
+    const currentMarginInput = document.getElementById('current-margin');
+    if (voltageMarginInput) {
+      voltageMarginInput.addEventListener('input', () => {
+        this.marginSettings.voltageMargin = parseFloat(voltageMarginInput.value) || 20;
+      });
+    }
+    if (currentMarginInput) {
+      currentMarginInput.addEventListener('input', () => {
+        this.marginSettings.currentMargin = parseFloat(currentMarginInput.value) || 20;
+      });
+    }
     document.getElementById('btn-clear-all').addEventListener('click', () => this.clearAll());
     document.getElementById('btn-save-curves').addEventListener('click', () => this.saveCurvesConfig());
     document.getElementById('btn-load-curves').addEventListener('click', () => this.loadCurvesConfig());
@@ -413,35 +434,44 @@ const LLCVerifier = {
   },
 
   /**
-   * 锁定参数
+   * 切换锁定/解锁状态
+   */
+  toggleLockParams() {
+    if (this.paramsLocked) {
+      this.unlockParams();
+    } else {
+      this.lockParams();
+    }
+  },
+
+  /**
+   * 锁定参数（可反复切换）
    */
   lockParams() {
     this.paramsLocked = true;
     document.getElementById('btn-sync-frozen').disabled = true;
-    document.getElementById('btn-lock-params').textContent = '🔓 解锁参数';
-    document.getElementById('btn-lock-params').onclick = () => this.unlockParams();
+    document.getElementById('btn-lock-params').textContent = '🔓 解锁参数 | Unlock Parameters';
     
-    // 禁用冻结参数编辑
+    // 禁用冻结参数编辑（锁定后不可修改）
     this.disableFrozenParamsEdit();
     
     localStorage.setItem('llc-verifier-params-locked', 'true');
-    this.showStatus('🔒 参数已锁定，现在可以手动修改 | Parameters locked, manual edit enabled', 'success');
+    this.showStatus('🔒 参数已锁定，不可修改 | Parameters locked, edit disabled', 'success');
   },
 
   /**
-   * 解锁参数
+   * 解锁参数（可反复切换）
    */
   unlockParams() {
     this.paramsLocked = false;
     document.getElementById('btn-sync-frozen').disabled = false;
-    document.getElementById('btn-lock-params').textContent = '🔒 锁定参数';
-    document.getElementById('btn-lock-params').onclick = () => this.lockParams();
+    document.getElementById('btn-lock-params').textContent = '🔒 锁定参数 | Lock Parameters';
     
-    // 使冻结参数可编辑
+    // 启用冻结参数编辑（解锁后可以修改）
     this.enableFrozenParamsEdit();
     
     localStorage.removeItem('llc-verifier-params-locked');
-    this.showStatus('🔓 参数已解锁，将自动从设计页同步 | Parameters unlocked, will auto-sync from design page', 'success');
+    this.showStatus('🔓 参数已解锁，可以修改 | Parameters unlocked, edit enabled', 'success');
   },
   
   /**
@@ -962,6 +992,10 @@ const LLCVerifier = {
           Np_cap: this.frozenParams.Np_cap || 1,
           Ns_cap: this.frozenParams.Ns_cap || 1
         },
+        marginSettings: {
+          voltageMargin: this.marginSettings.voltageMargin || 20,
+          currentMargin: this.marginSettings.currentMargin || 20
+        },
         mosfetModels: {
           pri: this.mosfetModels.pri || null,
           sec: this.mosfetModels.sec || null
@@ -1075,6 +1109,17 @@ const LLCVerifier = {
             this.updatePlecsPathDisplay();
           }
           
+          // 加载裕量设置
+          if (config.marginSettings) {
+            this.marginSettings.voltageMargin = config.marginSettings.voltageMargin || 20;
+            this.marginSettings.currentMargin = config.marginSettings.currentMargin || 20;
+            
+            const voltageMarginInput = document.getElementById('voltage-margin');
+            const currentMarginInput = document.getElementById('current-margin');
+            if (voltageMarginInput) voltageMarginInput.value = this.marginSettings.voltageMargin;
+            if (currentMarginInput) currentMarginInput.value = this.marginSettings.currentMargin;
+          }
+          
           // 注意：loadConfig 不导入曲线数据，只导入工况配置
           // 曲线数据通过 loadCurvesConfig 单独导入
           
@@ -1182,6 +1227,17 @@ const LLCVerifier = {
             this.plecsToolboxPath = config.plecsToolboxPath;
             this.savePlecsToolboxPath();
             this.updatePlecsPathDisplay();
+          }
+          
+          // 加载裕量设置
+          if (config.marginSettings) {
+            this.marginSettings.voltageMargin = config.marginSettings.voltageMargin || 20;
+            this.marginSettings.currentMargin = config.marginSettings.currentMargin || 20;
+            
+            const voltageMarginInput = document.getElementById('voltage-margin');
+            const currentMarginInput = document.getElementById('current-margin');
+            if (voltageMarginInput) voltageMarginInput.value = this.marginSettings.voltageMargin;
+            if (currentMarginInput) currentMarginInput.value = this.marginSettings.currentMargin;
           }
           
           // 加载曲线数据
@@ -1342,9 +1398,9 @@ const LLCVerifier = {
   },
 
   /**
-   * 运行仿真（手动模式）
+   * 建立仿真参数（生成 verify_input.json）
    */
-  runSimulation() {
+  buildParams() {
     if (!this.collectConditions()) {
       this.showStatus('⚠️ 请至少添加一个有效工况 | Please add at least one valid condition', 'error');
       return;
@@ -1355,7 +1411,7 @@ const LLCVerifier = {
       if (!confirmed) return;
     }
     
-    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置、热模型变量和 PLECS 路径）
+    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置、热模型变量、PLECS 路径和裕量）
     const simulationData = {
       frozenParams: {
         Cr_p: this.frozenParams.Cr_p,
@@ -1366,6 +1422,10 @@ const LLCVerifier = {
         Ns: this.frozenParams.Ns,
         Np_cap: this.frozenParams.Np_cap || 1,
         Ns_cap: this.frozenParams.Ns_cap || 1
+      },
+      marginSettings: {
+        voltageMargin: this.marginSettings.voltageMargin || 20,  // 电压裕量 (%)
+        currentMargin: this.marginSettings.currentMargin || 20   // 电流裕量 (%)
       },
       mosfetModels: {
         pri: this.mosfetModels.pri || null,
@@ -1394,15 +1454,56 @@ const LLCVerifier = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    // 提示用户手动运行 bat
-    alert(
-      '✅ verify_input.json 已生成并下载 | verify_input.json generated and downloaded\n\n' +
-      '请按以下步骤操作 | Please follow these steps:\n' +
-      '1. 将 verify_input.json 移动到 src-designer 目录 | Move verify_input.json to src-designer folder\n' +
-      '2. 双击运行 verify-sim.bat | Double-click verify-sim.bat\n' +
-      '3. 等待仿真完成，Excel 文件将自动保存 | Wait for simulation to complete, Excel will auto-save\n\n' +
-      '工作目录 | Working directory: /home/admin/.openclaw/workspace/src/tools/src-designer'
-    );
+    this.showStatus('✅ 仿真参数已建立 | Simulation parameters built (verify_input.json)', 'success');
+  },
+
+  /**
+   * 运行仿真（执行 verify-sim.bat）
+   */
+  runSimulation() {
+    if (!this.collectConditions()) {
+      this.showStatus('⚠️ 请至少添加一个有效工况 | Please add at least one valid condition', 'error');
+      return;
+    }
+    
+    if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
+      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"建立仿真参数"生成 verify_input.json。\n\n⚠️ Frozen parameters may not be set. Continue?\n\nRecommended to click "Build Simulation Parameters" first.');
+      if (!confirmed) return;
+    }
+    
+    // 先建立参数
+    this.buildParams();
+    
+    // 提示用户运行 bat
+    setTimeout(() => {
+      const confirmed = confirm(
+        '✅ verify_input.json 已生成\n\n' +
+        '是否现在运行 verify-sim.bat 进行仿真？\n\n' +
+        '✅ verify_input.json generated\n\n' +
+        'Run verify-sim.bat now to start simulation?'
+      );
+      
+      if (confirmed) {
+        // 使用 exec 运行 bat 脚本
+        const workdir = '/home/admin/.openclaw/workspace/src/tools/src-designer';
+        const command = 'cd ' + workdir + ' && bash verify-sim.bat';
+        
+        this.showStatus('⏳ 正在启动仿真... | Starting simulation...', 'warning');
+        
+        // 注意：浏览器环境无法直接执行系统命令，需要用户手动运行
+        // 这里提供替代方案：打开文件管理器或提供明确指引
+        alert(
+          '🚀 仿真说明 | Simulation Instructions\n\n' +
+          '由于浏览器安全限制，无法直接执行批处理文件。\n' +
+          'Due to browser security restrictions, cannot execute batch file directly.\n\n' +
+          '请手动执行以下命令 | Please run manually:\n' +
+          'cd /home/admin/.openclaw/workspace/src/tools/src-designer\n' +
+          'bash verify-sim.bat\n\n' +
+          '或在文件管理器中双击 verify-sim.bat\n' +
+          'Or double-click verify-sim.bat in file manager.'
+        );
+      }
+    }, 500);
   },
 
   /**
