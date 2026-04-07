@@ -197,12 +197,19 @@
       color: #1f2937;
       margin: 0;
       display: flex;
-      align-items: center;
-      gap: 6px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
     }
     
-    .curve-card-unit {
-      font-size: 11px;
+    .curve-card-title-en {
+      font-size: 12px;
+      color: #4b5563;
+      font-weight: 500;
+    }
+    
+    .curve-card-title-sub {
+      font-size: 10px;
       color: #9ca3af;
       font-weight: normal;
     }
@@ -588,8 +595,17 @@
       transition: all 0.3s ease;
       border: none;
       display: inline-flex;
+      flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      line-height: 1.3;
+    }
+    
+    .btn span {
+      font-size: 10px;
+      opacity: 0.85;
+      font-weight: normal;
+      margin-top: 2px;
     }
     
     .btn-primary {
@@ -701,7 +717,9 @@
   </style>
 </head>
 <body>
-  <button class="back-to-design" onclick="window.location.href='index.html'">← 返回设计页</button>
+  <button class="back-to-design" onclick="window.location.href='index.html'">← 返回设计页
+    <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Back to Design</span>
+  </button>
   
   <div class="container">
     <header>
@@ -712,9 +730,9 @@
     <main>
       <!-- 冻结参数面板 -->
       <section class="panel frozen-params-panel">
-        <h2>❄️ 冻结的谐振参数</h2>
+        <h2>❄️ 冻结的谐振参数 | Frozen Resonant Parameters</h2>
         <p style="color: #065f46; font-size: 13px; margin: 0 0 16px 0;">
-          以下参数从设计页同步，点击"更新冻结参数"可重新获取
+          以下参数从设计页同步，点击"更新冻结参数"可重新获取 | Parameters synced from design page
         </p>
         <div class="frozen-grid">
           <div class="frozen-item">
@@ -753,22 +771,31 @@
           </div>
         </div>
         <div class="verify-actions" style="border-top: none; padding-top: 16px; margin-top: 16px;">
-          <button id="btn-sync-frozen" class="btn btn-primary">🔄 更新冻结参数</button>
-          <button id="btn-lock-params" class="btn btn-outline">🔒 锁定参数</button>
+          <button id="btn-sync-frozen" class="btn btn-primary">🔄 更新冻结参数
+            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Update Frozen Parameters</span>
+          </button>
+          <button id="btn-lock-params" class="btn btn-outline">🔒 锁定参数
+            <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Lock Parameters</span>
+          </button>
         </div>
       </section>
 
       <!-- 曲线配置面板 -->
       <section class="panel curve-panel">
         <div class="curve-panel-header">
-          <h2>📈 曲线可视化配置</h2>
+          <h2>📈 曲线可视化配置 | Curve Visualization Config</h2>
           <div style="display: flex; gap: 10px;">
-            <button id="btn-save-curves" class="btn btn-primary">💾 保存曲线</button>
-            <button id="btn-load-curves" class="btn btn-outline">📂 导入曲线</button>
+            <button id="btn-save-curves" class="btn btn-primary">💾 保存曲线
+              <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Save Curves</span>
+            </button>
+            <button id="btn-load-curves" class="btn btn-outline">📂 导入曲线
+              <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Load Curves</span>
+            </button>
           </div>
         </div>
         <p class="curve-panel-desc">
           💡 横轴：输出电压 Vref (V) | 使能后工况数值由曲线根据 Vref 自动计算，否则使用默认值（死区 200ns，移相 0ns）
+          <br><span style="font-size: 11px; opacity: 0.9;">💡 X-axis: Output Voltage Vref (V) | Enabled curves auto-calculate values based on Vref, otherwise use defaults (deadtime 200ns, phase-shift 0ns)</span>
         </p>
         
         <div class="curve-grid">
@@ -778,22 +805,30 @@
               <h3 class="curve-card-title">🛠️ 工具</h3>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px; padding: 10px 0;">
+              <button id="btn-set-plecs-path" class="btn btn-outline" style="width: 100%; justify-content: center; border-color: #f59e0b; color: #92400e;">
+                ⚙️ 设置 PLECS 工具箱路径
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Set PLECS Toolbox Path</span>
+              </button>
+              <div id="plecs-path-display" style="font-size: 10px; color: #78350f; text-align: center; word-break: break-all; min-height: 24px;"></div>
+              
               <button id="btn-import-mos-pri" class="btn btn-primary" style="width: 100%; justify-content: center;">
                 🔌 导入原边 MOSFET 模型
+                <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Import Primary MOSFET Model</span>
               </button>
-              <input type="text" id="mos-pri-path-input" placeholder="原边模型绝对路径" 
+              <input type="text" id="mos-pri-path-input" placeholder="原边模型绝对路径 | Primary Model Absolute Path" 
                      style="width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; box-sizing: border-box;"
                      onchange="LLCVerifier.updateMosfetPath('pri', this.value)">
               <button id="btn-import-mos-sec" class="btn btn-outline" style="width: 100%; justify-content: center; margin-top: 6px;">
                 🔌 导入副边 MOSFET 模型
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Import Secondary MOSFET Model</span>
               </button>
-              <input type="text" id="mos-sec-path-input" placeholder="副边模型绝对路径" 
+              <input type="text" id="mos-sec-path-input" placeholder="副边模型绝对路径 | Secondary Model Absolute Path" 
                      style="width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; box-sizing: border-box;"
                      onchange="LLCVerifier.updateMosfetPath('sec', this.value)">
               <div class="thermal-settings-row">
                 <div class="toggle-switch">
                   <input type="checkbox" id="thermal-sim-enable">
-                  <label for="thermal-sim-enable">热仿真</label>
+                  <label for="thermal-sim-enable">热仿真 | Thermal Simulation</label>
                 </div>
                 <div class="tvj-input-group">
                   <input type="number" id="tvj-input" value="130" step="1" placeholder="Tvj">
@@ -804,27 +839,29 @@
               <!-- 热模型变量输入区域 -->
               <div id="thermal-vars-panel" style="display: none; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; border: 1px solid #f59e0b;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                  <h4 style="margin: 0; color: #92400e; font-size: 13px;">🔧 热模型变量 (thermal_vars_struct)</h4>
-                  <button id="btn-clear-thermal-vars" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">清空</button>
+                  <h4 style="margin: 0; color: #92400e; font-size: 13px;">🔧 热模型变量 | Thermal Model Variables (thermal_vars_struct)</h4>
+                  <button id="btn-clear-thermal-vars" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">清空 | Clear</button>
                 </div>
-                <p style="margin: 0 0 8px 0; font-size: 11px; color: #78350f;">从 MOSFET 模型 XML 中自动解析的变量，请填入数值：</p>
+                <p style="margin: 0 0 8px 0; font-size: 11px; color: #78350f;">从 MOSFET 模型 XML 中自动解析的变量，请填入数值 | Variables auto-parsed from MOSFET XML, enter values:</p>
                 <div id="thermal-vars-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
                   <!-- 动态生成的变量输入框 -->
                 </div>
               </div>
               <button id="btn-import-datasheet" class="btn btn-outline" style="width: 100%; justify-content: center;">
                 📄 导入规格书
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Import Datasheet</span>
               </button>
               <button id="btn-webplot" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="window.open('https://apps.automeris.io/wpd4/', '_blank')">
                 📈 WebPlotDigitizer
+                <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Open Web Tool</span>
               </button>
             </div>
             <div class="curve-chart-wrapper" style="background: transparent; display: flex; align-items: center; justify-content: center;">
               <div style="text-align: center; color: #9ca3af; font-size: 11px; line-height: 1.5;">
-                <p style="margin: 0 0 6px 0; font-weight: 600;">💡 MOSFET 映射</p>
-                <p style="margin: 0 0 4px 0;">FETD-FETD3: 原边 (4 个)</p>
-                <p style="margin: 0 0 4px 0;">FETD4-FETD7: 副边 (4 个)</p>
-                <p style="margin: 6px 0 0 0; font-size: 10px; color: #6b7280;">模型路径将自动保存</p>
+                <p style="margin: 0 0 6px 0; font-weight: 600;">💡 MOSFET 映射 | MOSFET Mapping</p>
+                <p style="margin: 0 0 4px 0;">FETD-FETD3: 原边 (4 个) | Primary (4)</p>
+                <p style="margin: 0 0 4px 0;">FETD4-FETD7: 副边 (4 个) | Secondary (4)</p>
+                <p style="margin: 6px 0 0 0; font-size: 10px; color: #6b7280;">模型路径将自动保存 | Model paths auto-saved</p>
               </div>
             </div>
           </div>
@@ -832,15 +869,19 @@
           <!-- Vin 曲线 -->
           <div class="curve-card" id="card-vin">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">⚡ Vin <span class="curve-card-unit">输入电压 (V)</span></h3>
+              <h3 class="curve-card-title">
+                ⚡ Vin
+                <span class="curve-card-title-en">输入电压 (V)</span>
+                <span class="curve-card-title-sub">Input Voltage</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="vin-enable" onchange="LLCVerifier.toggleCurve('vin')">
-                <label for="vin-enable">使能</label>
+                <label for="vin-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="vin-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('vin')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('vin')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="vin-chart"></canvas>
@@ -850,15 +891,19 @@
           <!-- PriDB1 曲线 -->
           <div class="curve-card" id="card-pridb1">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">🔌 PriDB1 <span class="curve-card-unit">原边非移相死区 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                🔌 PriDB1
+                <span class="curve-card-title-en">原边非移相死区 (ns)</span>
+                <span class="curve-card-title-sub">Primary Non-PS Deadtime</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="pridb1-enable" onchange="LLCVerifier.toggleCurve('pridb1')">
-                <label for="pridb1-enable">使能</label>
+                <label for="pridb1-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="pridb1-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb1')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb1')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="pridb1-chart"></canvas>
@@ -868,15 +913,19 @@
           <!-- PriDB2 曲线 -->
           <div class="curve-card" id="card-pridb2">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">🔌 PriDB2 <span class="curve-card-unit">原边移相死区 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                🔌 PriDB2
+                <span class="curve-card-title-en">原边移相死区 (ns)</span>
+                <span class="curve-card-title-sub">Primary PS Deadtime</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="pridb2-enable" onchange="LLCVerifier.toggleCurve('pridb2')">
-                <label for="pridb2-enable">使能</label>
+                <label for="pridb2-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="pridb2-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb2')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('pridb2')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="pridb2-chart"></canvas>
@@ -886,15 +935,19 @@
           <!-- PriPS2 曲线 -->
           <div class="curve-card" id="card-prips2">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">📐 PriPS2 <span class="curve-card-unit">原边移相 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                📐 PriPS2
+                <span class="curve-card-title-en">原边移相 (ns)</span>
+                <span class="curve-card-title-sub">Primary Phase Shift</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="prips2-enable" onchange="LLCVerifier.toggleCurve('prips2')">
-                <label for="prips2-enable">使能</label>
+                <label for="prips2-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="prips2-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('prips2')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('prips2')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="prips2-chart"></canvas>
@@ -904,15 +957,19 @@
           <!-- SecDB_NonPS 曲线 -->
           <div class="curve-card" id="card-secdb-nonps">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">🔌 SecDB_NonPS <span class="curve-card-unit">副边非移相死区 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                🔌 SecDB_NonPS
+                <span class="curve-card-title-en">副边非移相死区 (ns)</span>
+                <span class="curve-card-title-sub">Secondary Non-PS Deadtime</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="secdb-nonps-enable" onchange="LLCVerifier.toggleCurve('secdb_nonps')">
-                <label for="secdb-nonps-enable">使能</label>
+                <label for="secdb-nonps-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="secdb-nonps-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_nonps')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_nonps')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="secdb-nonps-chart"></canvas>
@@ -922,15 +979,19 @@
           <!-- SecDB_PS 曲线 -->
           <div class="curve-card" id="card-secdb-ps">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">🔌 SecDB_PS <span class="curve-card-unit">副边移相死区 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                🔌 SecDB_PS
+                <span class="curve-card-title-en">副边移相死区 (ns)</span>
+                <span class="curve-card-title-sub">Secondary PS Deadtime</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="secdb-ps-enable" onchange="LLCVerifier.toggleCurve('secdb_ps')">
-                <label for="secdb-ps-enable">使能</label>
+                <label for="secdb-ps-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="secdb-ps-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_ps')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secdb_ps')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="secdb-ps-chart"></canvas>
@@ -940,15 +1001,19 @@
           <!-- SecPS 曲线 -->
           <div class="curve-card" id="card-secps">
             <div class="curve-card-header">
-              <h3 class="curve-card-title">📐 SecPS <span class="curve-card-unit">副边移相 (ns)</span></h3>
+              <h3 class="curve-card-title">
+                📐 SecPS
+                <span class="curve-card-title-en">副边移相 (ns)</span>
+                <span class="curve-card-title-sub">Secondary Phase Shift</span>
+              </h3>
               <div class="toggle-switch">
                 <input type="checkbox" id="secps-enable" onchange="LLCVerifier.toggleCurve('secps')">
-                <label for="secps-enable">使能</label>
+                <label for="secps-enable">使能 | Enable</label>
               </div>
             </div>
             <div class="curve-points" id="secps-points"></div>
             <div class="curve-card-footer">
-              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secps')">➕ 添加数据点</button>
+              <button class="btn-add-point" onclick="LLCVerifier.addPoint('secps')">➕ 添加数据点 | Add Point</button>
             </div>
             <div class="curve-chart-wrapper">
               <canvas id="secps-chart"></canvas>
@@ -959,16 +1024,16 @@
 
       <!-- 工况输入面板 -->
       <section class="panel input-panel">
-        <h2>⚙️ 仿真工况设置</h2>
+        <h2>⚙️ 仿真工况设置 | Simulation Conditions</h2>
         
         <div class="conditions-list">
           <div class="condition-row header">
-            <div class="row-label">工况 #</div>
+            <div class="row-label">工况 # | Condition</div>
             <div class="row-label">Vin (V)</div>
             <div class="row-label">Vref (V)</div>
             <div class="row-label">Po (W)</div>
             <div class="row-label">Rload (Ω)</div>
-            <div class="row-label">操作</div>
+            <div class="row-label">操作 | Action</div>
           </div>
           <div id="conditions-container">
             <!-- 动态添加的工况行 -->
@@ -976,33 +1041,36 @@
         </div>
 
         <div class="verify-actions">
-          <button id="btn-add-condition" class="btn btn-primary">➕ 加工况</button>
-          <button id="btn-save-config" class="btn btn-outline">💾 保存配置</button>
-          <button id="btn-load-config" class="btn btn-outline">📂 导入配置</button>
-          <button id="btn-run-simulation" class="btn btn-primary">▶️ 开始仿真</button>
-          <button id="btn-clear-all" class="btn btn-outline">🗑️ 清空全部</button>
+          <button id="btn-add-condition" class="btn btn-primary">➕ 加工况
+            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Add Condition</span>
+          </button>
+          <button id="btn-save-config" class="btn btn-outline">💾 保存配置
+            <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Save Config</span>
+          </button>
+          <button id="btn-load-config" class="btn btn-outline">📂 导入配置
+            <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Load Config</span>
+          </button>
+          <button id="btn-import-all" class="btn btn-primary">📥 一键导入全部
+            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Import All (Config + Curves)</span>
+          </button>
+          <button id="btn-run-simulation" class="btn btn-primary">▶️ 开始仿真
+            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Run Simulation</span>
+          </button>
+          <button id="btn-clear-all" class="btn btn-outline">🗑️ 清空全部
+            <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Clear All</span>
+          </button>
         </div>
       </section>
 
-      <!-- 结果面板 -->
+      <!-- 结果面板（预留） -->
       <section class="panel results-panel" id="results-panel" style="display: none;">
-        <h2>📊 仿真结果</h2>
-        
-        <div class="button-group" style="margin-bottom: 20px;">
-          <button id="btn-export-json" class="btn btn-outline">📥 导出 JSON</button>
-          <button id="btn-export-csv" class="btn btn-outline">📥 导出 CSV</button>
-          <button id="btn-clear-results" class="btn btn-outline">🗑️ 清除结果</button>
-        </div>
-
-        <!-- 结果表格 -->
-        <div id="results-table-container">
-          <!-- 动态生成的结果表格 -->
-        </div>
+        <h2>📊 仿真结果 | Simulation Results</h2>
+        <p style="color: #6b7280; font-size: 13px;">仿真结果将通过 Excel 文件输出 | Results exported to Excel</p>
       </section>
     </main>
 
     <footer style="text-align: center; padding: 20px; color: #6b7280; font-size: 13px;">
-      <p>LLC 验证工具 - 多工况仿真验证</p>
+      <p>LLC 验证工具 - 多工况仿真验证 | LLC Verifier - Multi-Condition Simulation</p>
     </footer>
   </div>
 

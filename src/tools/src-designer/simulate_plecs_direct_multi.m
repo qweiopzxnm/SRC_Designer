@@ -17,8 +17,25 @@ function simulate_plecs_direct_multi()
         if isfield(simData, 'thermalSettings'), thermalSettings = simData.thermalSettings; end
         
         % 2. 环境准备
-        plecs_toolbox_path = 'C:\Users\m1774\Documents\Plexim\PLECS 4.7 (64 bit)\wbstoolbox';
-        if exist(plecs_toolbox_path, 'dir'), addpath(plecs_toolbox_path); end
+        plecs_toolbox_path = 'C:/Users/m1774/Documents/Plexim/PLECS 4.7 (64 bit)/wbstoolbox';
+        % 尝试从 JSON 读取自定义路径
+        if isfield(simData, 'plecsToolboxPath') && ~isempty(simData.plecsToolboxPath)
+            plecs_toolbox_path = simData.plecsToolboxPath;
+            fprintf('✅ 使用自定义 PLECS 路径：%s
+', plecs_toolbox_path);
+        else
+            fprintf('ℹ️ 使用默认 PLECS 路径：%s
+', plecs_toolbox_path);
+        end
+        
+        if exist(plecs_toolbox_path, 'dir')
+            addpath(plecs_toolbox_path);
+            fprintf('✅ PLECS 工具箱已加载
+');
+        else
+            fprintf('⚠️ 警告：PLECS 路径不存在，尝试继续...
+');
+        end
         
         % 根据热仿真开关选择模型
         if isfield(thermalSettings, 'enabled') && thermalSettings.enabled

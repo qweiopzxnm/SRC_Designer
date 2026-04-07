@@ -17,11 +17,17 @@ const LLCVerifier = {
     Ns_cap: null
   },
   
+  // 参数锁定状态
+  paramsLocked: false,
+  
   // MOSFET 模型文件路径
   mosfetModels: {
     pri: null,  // 原边 MOSFET 模型路径
     sec: null   // 副边 MOSFET 模型路径
   },
+  
+  // PLECS 工具箱路径
+  plecsToolboxPath: null,
   
   // 热仿真设置
   thermalSettings: {
@@ -129,7 +135,8 @@ const LLCVerifier = {
    */
   init() {
     this.bindEvents();
-    this.syncFrozenParams();
+    this.loadFrozenParams();  // 初始化为空，清除旧数据
+    this.syncFrozenParams();  // 检查设计页是否有数据，无则保持为空
     this.initAllCurves();
     this.addCondition();
     this.loadThermalVars();
@@ -145,6 +152,7 @@ const LLCVerifier = {
     document.getElementById('btn-add-condition').addEventListener('click', () => this.addCondition());
     document.getElementById('btn-save-config').addEventListener('click', () => this.saveConfig());
     document.getElementById('btn-load-config').addEventListener('click', () => this.loadConfig());
+    document.getElementById('btn-import-all').addEventListener('click', () => this.importAllConfig());
     document.getElementById('btn-run-simulation').addEventListener('click', () => this.runSimulation());
     document.getElementById('btn-clear-all').addEventListener('click', () => this.clearAll());
     document.getElementById('btn-save-curves').addEventListener('click', () => this.saveCurvesConfig());
@@ -161,7 +169,7 @@ const LLCVerifier = {
       thermalEnableCheckbox.addEventListener('change', () => {
         this.thermalSettings.enabled = thermalEnableCheckbox.checked;
         this.saveThermalSettings();
-        this.showStatus(thermalEnableCheckbox.checked ? '✅ 热仿真已启用' : '⚠️ 热仿真已禁用', thermalEnableCheckbox.checked ? 'success' : 'warning');
+        this.showStatus(thermalEnableCheckbox.checked ? '✅ 热仿真已启用 | Thermal simulation enabled' : '⚠️ 热仿真已禁用 | Thermal simulation disabled', thermalEnableCheckbox.checked ? 'success' : 'warning');
       });
     }
     
@@ -181,10 +189,19 @@ const LLCVerifier = {
     if (btnClearThermalVars) {
       btnClearThermalVars.addEventListener('click', () => this.clearThermalVars());
     }
+    
+    // PLECS 工具箱路径设置
+    const btnSetPlecsPath = document.getElementById('btn-set-plecs-path');
+    if (btnSetPlecsPath) {
+      btnSetPlecsPath.addEventListener('click', () => this.setPlecsToolboxPath());
+    }
+    
+    // 加载 PLECS 路径
+    this.loadPlecsToolboxPath();
   },
   
   /**
-   * 加载保存的 MOSFET 路径显示
+   * 加载保存的 MOSFET 路径
    */
   loadMosfetPaths() {
     const savedMosPri = localStorage.getItem('llc-verifier-mos-pri');
@@ -195,45 +212,142 @@ const LLCVerifier = {
       const priInput = document.getElementById('mos-pri-path-input');
       if (priInput) priInput.value = savedMosPri;
     }
+    
     if (savedMosSec) {
       this.mosfetModels.sec = savedMosSec;
       const secInput = document.getElementById('mos-sec-path-input');
       if (secInput) secInput.value = savedMosSec;
     }
-    
-    // 加载保存的热模型变量
-    this.loadThermalVars();
   },
   
   /**
-   * 手动更新 MOSFET 路径
+   * 设置 PLECS 工具箱路径
+   */
+  setPlecsToolboxPath() {
+    const currentPath = this.plecsToolboxPath || '';
+    
+    const newPath = prompt(
+      '⚙️ 设置 PLECS 工具箱路径 | Set PLECS Toolbox Path\n\n' +
+      '请输入正确路径（包含 jsonrpc.m 和 plecs.m），否则会报错\n' +
+      'Please enter correct path (must contain jsonrpc.m and plecs.m), or errors will occur\n\n' +
+      '💡 示例 | Example:\n' +
+      'Windows: C:/Users/m1774/Documents/Plexim/PLECS 4.7 (64 bit)/wbstoolbox\n' +
+      'Linux: /home/user/plecs/toolbox\n\n' +
+      '💡 提示 | Tips:\n' +
+      '- 路径应包含 plecs.m 和 jsonrpc.m 文件 | Path must contain plecs.m and jsonrpc.m\n' +
+      '- 反斜杠将自动转换为正斜杠 | Backslashes auto-converted to forward slashes\n' +
+      '- 留空可清除路径 | Leave empty to clear',
+      currentPath
+    );
+    
+    if (newPath !== null) {
+      if (newPath.trim()) {
+        // 统一路径格式：反斜杠转正斜杠
+        const finalPath = newPath.trim().replace(/\\/g, '/');
+        this.plecsToolboxPath = finalPath;
+        this.savePlecsToolboxPath();
+        this.updatePlecsPathDisplay();
+        this.showStatus('✅ PLECS 工具箱路径已设置 | PLECS toolbox path set', 'success');
+      } else {
+        // 清除路径
+        this.plecsToolboxPath = null;
+        localStorage.removeItem('llc-verifier-plecs-path');
+        this.updatePlecsPathDisplay();
+        this.showStatus('🗑️ PLECS 路径已清除 | PLECS path cleared', 'warning');
+      }
+    }
+  },
+  
+  /**
+   * 保存 PLECS 工具箱路径
+   */
+  savePlecsToolboxPath() {
+    localStorage.setItem('llc-verifier-plecs-path', this.plecsToolboxPath || '');
+  },
+  
+  /**
+   * 加载 PLECS 工具箱路径
+   */
+  loadPlecsToolboxPath() {
+    const savedPath = localStorage.getItem('llc-verifier-plecs-path');
+    if (savedPath) {
+      this.plecsToolboxPath = savedPath;
+    }
+    this.updatePlecsPathDisplay();
+  },
+  
+  /**
+   * 更新 PLECS 路径显示
+   */
+  updatePlecsPathDisplay() {
+    const display = document.getElementById('plecs-path-display');
+    if (display) {
+      if (this.plecsToolboxPath) {
+        display.textContent = '📁 ' + this.plecsToolboxPath;
+        display.style.color = '#16a34a';
+      } else {
+        display.textContent = '⚠️ 未设置 PLECS 路径，将使用默认路径 | PLECS path not set, using default';
+        display.style.color = '#ca8a04';
+      }
+    }
+  },
+  
+  /**
+   * 手动更新 MOSFET 路径（自动转换反斜杠为正斜杠）
    */
   updateMosfetPath(side, path) {
     if (!path || !path.trim()) return;
     
-    const finalPath = path.trim();
+    // 自动转换反斜杠为正斜杠
+    const finalPath = path.trim().replace(/\\/g, '/');
     
     if (side === 'pri') {
       this.mosfetModels.pri = finalPath;
       localStorage.setItem('llc-verifier-mos-pri', finalPath);
-      this.showStatus(`✅ 原边模型路径已更新`, 'success');
+      this.showStatus(`✅ 原边模型路径已更新 | Primary model path updated`, 'success');
     } else {
       this.mosfetModels.sec = finalPath;
       localStorage.setItem('llc-verifier-mos-sec', finalPath);
-      this.showStatus(`✅ 副边模型路径已更新`, 'success');
+      this.showStatus(`✅ 副边模型路径已更新 | Secondary model path updated`, 'success');
     }
   },
 
   /**
    * 从设计页同步冻结参数
    */
-  syncFrozenParams() {
+  syncFrozenParams(force = false) {
+    // 如果参数已锁定且不是强制同步，则跳过
+    if (this.paramsLocked && !force) {
+      this.showStatus('🔒 参数已锁定，跳过自动同步 | Parameters locked, skipping auto-sync', 'warning');
+      return;
+    }
+    
     try {
-      const savedResults = localStorage.getItem('llc-designer-results');
+      // 从 sessionStorage 读取（页面关闭后自动清除，保护隐私）
+      const savedResults = sessionStorage.getItem('llc-designer-results');
       
       if (savedResults) {
         const results = JSON.parse(savedResults);
-        this.frozenParams = {
+        
+        // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
+        if (!results.Cr_p || !results.Lr || !results.Lm) {
+          // 设计页未计算，全部归 0
+          this.frozenParams = {
+            Cr_p: null,
+            Cr_s: null,
+            Lr: null,
+            Lm: null,
+            Np: null,
+            Ns: null,
+            Np_cap: null,
+            Ns_cap: null
+          };
+          this.updateFrozenDisplay();
+          this.showStatus('⚠️ 设计页未计算，参数已归零 | Design page not calculated, parameters reset', 'warning');
+          return;
+        }
+        
+        const newParams = {
           Cr_p: results.Cr_p * 1e9,
           Cr_s: results.Cr_s * 1e9,
           Lr: results.Lr * 1e6,
@@ -244,56 +358,42 @@ const LLCVerifier = {
           Ns_cap: results.Ns_cap || 1
         };
         
-        if (this.frozenParams.Lm && typeof this.frozenParams.Lm === 'number' && isFinite(this.frozenParams.Lm)) {
+        if (newParams.Lm && typeof newParams.Lm === 'number' && isFinite(newParams.Lm)) {
+          // 检查参数是否发生变化
+          const hasChanged = this.frozenParams.Cr_p !== newParams.Cr_p || 
+                            this.frozenParams.Cr_s !== newParams.Cr_s ||
+                            this.frozenParams.Lr !== newParams.Lr;
+          
+          this.frozenParams = newParams;
           this.updateFrozenDisplay();
-          this.showStatus('✅ 冻结参数已从设计页同步', 'success');
+          
+          if (hasChanged && !this.paramsLocked) {
+            this.showStatus('✅ 冻结参数已从设计页同步 | Frozen params synced from design page', 'success');
+          } else if (this.paramsLocked) {
+            this.showStatus('🔓 参数已解锁并同步 | Parameters unlocked and synced', 'success');
+          }
           return;
         }
-      }
-      
-      const savedParams = localStorage.getItem('llc-designer-params');
-      if (savedParams && typeof LLCCalculator !== 'undefined') {
-        const params = JSON.parse(savedParams);
-        const C_unit = parseFloat(params.C_unit) || 47;
-        const L_step = parseFloat(params.L_step) || 1;
-        const Lm = parseFloat(params.Lm) || 400;
-        
-        const dsn = LLCCalculator.calculateDsnpara(params);
-        const act = LLCCalculator.calculateActpara(dsn, C_unit, L_step, Lm);
-        
+      } else {
+        // 没有保存的结果，全部归 0
         this.frozenParams = {
-          Cr_p: act.Cr_p * 1e9,
-          Cr_s: act.Cr_s * 1e9,
-          Lr: act.Lr_p * 1e6,
-          Lm: act.Lm_uH,
-          Np: dsn.Np,
-          Ns: dsn.Ns,
-          Np_cap: act.Np_cap || 1,
-          Ns_cap: act.Ns_cap || 1
+          Cr_p: null,
+          Cr_s: null,
+          Lr: null,
+          Lm: null,
+          Np: null,
+          Ns: null,
+          Np_cap: null,
+          Ns_cap: null
         };
-        
         this.updateFrozenDisplay();
-        this.showStatus('✅ 冻结参数已重新计算并更新', 'success');
+        this.showStatus('⚠️ 设计页无数据，参数已归零 | No design data, parameters reset', 'warning');
         return;
       }
       
-      this.frozenParams = {
-        Cr_p: 47.0,
-        Cr_s: 47.0,
-        Lr: 45.0,
-        Lm: 400.0,
-        Np: 24,
-        Ns: 23,
-        Np_cap: 1,
-        Ns_cap: 1
-      };
-      
-      this.updateFrozenDisplay();
-      this.showStatus('⚠️ 未找到设计页参数，使用默认值', 'warning');
-      
     } catch (error) {
       console.error('同步参数失败:', error);
-      this.showStatus('❌ 同步参数失败：' + error.message, 'error');
+      this.showStatus('❌ 同步参数失败 | Sync failed: ' + error.message, 'error');
     }
   },
 
@@ -301,37 +401,152 @@ const LLCVerifier = {
    * 更新冻结参数显示
    */
   updateFrozenDisplay() {
-    document.getElementById('frozen-Crp').textContent = this.frozenParams.Cr_p.toFixed(1);
-    document.getElementById('frozen-Crs').textContent = this.frozenParams.Cr_s.toFixed(1);
-    document.getElementById('frozen-Lr').textContent = this.frozenParams.Lr.toFixed(1);
-    document.getElementById('frozen-Lm').textContent = this.frozenParams.Lm.toFixed(1);
-    document.getElementById('frozen-Np').textContent = this.frozenParams.Np;
-    document.getElementById('frozen-Ns').textContent = this.frozenParams.Ns;
-    document.getElementById('frozen-Np-cap').textContent = this.frozenParams.Np_cap;
-    document.getElementById('frozen-Ns-cap').textContent = this.frozenParams.Ns_cap;
+    const fp = this.frozenParams;
+    document.getElementById('frozen-Crp').textContent = fp.Cr_p ? fp.Cr_p.toFixed(1) : '-';
+    document.getElementById('frozen-Crs').textContent = fp.Cr_s ? fp.Cr_s.toFixed(1) : '-';
+    document.getElementById('frozen-Lr').textContent = fp.Lr ? fp.Lr.toFixed(1) : '-';
+    document.getElementById('frozen-Lm').textContent = fp.Lm ? fp.Lm.toFixed(1) : '-';
+    document.getElementById('frozen-Np').textContent = fp.Np || '-';
+    document.getElementById('frozen-Ns').textContent = fp.Ns || '-';
+    document.getElementById('frozen-Np-cap').textContent = fp.Np_cap || '-';
+    document.getElementById('frozen-Ns-cap').textContent = fp.Ns_cap || '-';
   },
 
   /**
    * 锁定参数
    */
   lockParams() {
-    const confirmed = confirm('确定要锁定谐振参数吗？');
-    if (confirmed) {
-      document.getElementById('btn-sync-frozen').disabled = true;
-      document.getElementById('btn-lock-params').textContent = '🔓 解锁参数';
-      document.getElementById('btn-lock-params').onclick = () => this.unlockParams();
-      this.showStatus('🔒 参数已锁定', 'success');
-    }
+    this.paramsLocked = true;
+    document.getElementById('btn-sync-frozen').disabled = true;
+    document.getElementById('btn-lock-params').textContent = '🔓 解锁参数';
+    document.getElementById('btn-lock-params').onclick = () => this.unlockParams();
+    
+    // 使冻结参数可编辑
+    this.enableFrozenParamsEdit();
+    
+    localStorage.setItem('llc-verifier-params-locked', 'true');
+    this.showStatus('🔒 参数已锁定，现在可以手动修改 | Parameters locked, manual edit enabled', 'success');
   },
 
   /**
    * 解锁参数
    */
   unlockParams() {
+    this.paramsLocked = false;
     document.getElementById('btn-sync-frozen').disabled = false;
     document.getElementById('btn-lock-params').textContent = '🔒 锁定参数';
     document.getElementById('btn-lock-params').onclick = () => this.lockParams();
-    this.showStatus('🔓 参数已解锁', 'success');
+    
+    // 禁用冻结参数编辑
+    this.disableFrozenParamsEdit();
+    
+    localStorage.removeItem('llc-verifier-params-locked');
+    this.showStatus('🔓 参数已解锁，将自动从设计页同步 | Parameters unlocked, will auto-sync from design page', 'success');
+  },
+  
+  /**
+   * 启用冻结参数编辑
+   */
+  enableFrozenParamsEdit() {
+    const frozenItems = document.querySelectorAll('.frozen-item .value');
+    frozenItems.forEach(item => {
+      if (!item.dataset.editable) {
+        const currentValue = item.textContent;
+        item.dataset.editable = 'true';
+        item.dataset.original = currentValue;
+        item.contentEditable = 'true';
+        item.style.cssText = 'border-bottom: 2px dashed #10b981; cursor: pointer;';
+        item.title = '点击修改';
+        
+        item.addEventListener('blur', () => this.onFrozenParamChange(item));
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            item.blur();
+          }
+        });
+      }
+    });
+  },
+  
+  /**
+   * 禁用冻结参数编辑
+   */
+  disableFrozenParamsEdit() {
+    const frozenItems = document.querySelectorAll('.frozen-item .value');
+    frozenItems.forEach(item => {
+      if (item.dataset.editable) {
+        delete item.dataset.editable;
+        item.contentEditable = 'false';
+        item.style.cssText = '';
+        item.title = '';
+        item.removeEventListener('blur', () => this.onFrozenParamChange(item));
+      }
+    });
+  },
+  
+  /**
+   * 冻结参数变更处理
+   */
+  onFrozenParamChange(item) {
+    const label = item.parentElement.querySelector('.label')?.textContent || '';
+    const newValue = parseFloat(item.textContent);
+    
+    if (isNaN(newValue)) {
+      item.textContent = item.dataset.original || '0';
+      this.showStatus('⚠️ 无效数值 | Invalid value', 'error');
+      return;
+    }
+    
+    // 更新 frozenParams
+    if (label.includes('Cr_p')) {
+      this.frozenParams.Cr_p = newValue;
+    } else if (label.includes('Cr_s')) {
+      this.frozenParams.Cr_s = newValue;
+    } else if (label.includes('Lr')) {
+      this.frozenParams.Lr = newValue;
+    } else if (label.includes('Lm')) {
+      this.frozenParams.Lm = newValue;
+    } else if (label.includes('Np')) {
+      this.frozenParams.Np = newValue;
+    } else if (label.includes('Ns')) {
+      this.frozenParams.Ns = newValue;
+    } else if (label.includes('原边电容并联')) {
+      this.frozenParams.Np_cap = newValue;
+    } else if (label.includes('副边电容并联')) {
+      this.frozenParams.Ns_cap = newValue;
+    }
+    
+    this.saveFrozenParams();
+    this.showStatus('✅ 参数已更新 | Parameter updated', 'success');
+  },
+  
+  /**
+   * 保存冻结参数
+   */
+  saveFrozenParams() {
+    localStorage.setItem('llc-verifier-frozen-params', JSON.stringify(this.frozenParams));
+  },
+  
+  /**
+   * 加载保存的冻结参数
+   */
+  loadFrozenParams() {
+    const savedParams = localStorage.getItem('llc-verifier-frozen-params');
+    const savedLocked = localStorage.getItem('llc-verifier-params-locked');
+    
+    if (savedParams) {
+      try {
+        this.frozenParams = JSON.parse(savedParams);
+      } catch (e) {
+        this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
+      }
+    } else {
+      this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
+    }
+    
+    this.paramsLocked = savedLocked === 'true';
+    this.updateFrozenDisplay();
   },
 
   // ==================== 曲线管理功能 ====================
@@ -405,7 +620,7 @@ const LLCVerifier = {
     this.renderPoints(key);
     this.renderChart(key);
     this.updateConditionInputs();
-    this.showStatus(`✅ 已添加 ${curve.name} 数据点`, 'success');
+    this.showStatus(`✅ 已添加 ${curve.name} 数据点 | ${curve.name} data point added`, 'success');
   },
 
   /**
@@ -413,14 +628,14 @@ const LLCVerifier = {
    */
   removePoint(key, index) {
     if (this.curveDefinitions[key].data.length <= 1) {
-      this.showStatus('⚠️ 至少需要保留一个数据点', 'warning');
+      this.showStatus('⚠️ 至少需要保留一个数据点 | At least one data point required', 'warning');
       return;
     }
     this.curveDefinitions[key].data.splice(index, 1);
     this.renderPoints(key);
     this.renderChart(key);
     this.updateConditionInputs();
-    this.showStatus('🗑️ 已删除数据点', 'success');
+    this.showStatus('🗑️ 已删除数据点 | Data point deleted', 'success');
   },
 
   /**
@@ -553,9 +768,9 @@ const LLCVerifier = {
     
     const curve = this.curveDefinitions[key];
     if (this.curveEnabled[key]) {
-      this.showStatus(`✅ ${curve.name} 曲线已使能`, 'success');
+      this.showStatus(`✅ ${curve.name} 曲线已使能 | ${curve.name} curve enabled`, 'success');
     } else {
-      this.showStatus(`⚠️ ${curve.name} 曲线已禁用 (使用默认值：${curve.default}${curve.unit})`, 'warning');
+      this.showStatus(`⚠️ ${curve.name} 曲线已禁用 (使用默认值：${curve.default}${curve.unit}) | ${curve.name} disabled (default: ${curve.default}${curve.unit})`, 'warning');
     }
   },
 
@@ -671,7 +886,7 @@ const LLCVerifier = {
     if (row) {
       row.remove();
       this.renumberConditions();
-      this.showStatus('🗑️ 已删除工况', 'success');
+      this.showStatus('🗑️ 已删除工况 | Condition deleted', 'success');
     }
   },
 
@@ -716,7 +931,7 @@ const LLCVerifier = {
       };
       
       if (condition.Vin <= 0 || condition.Vref <= 0 || condition.Po <= 0) {
-        this.showStatus(`⚠️ 工况 #${condition.id} 参数无效`, 'error');
+        this.showStatus(`⚠️ 工况 #${condition.id} 参数无效 | Condition #${condition.id} invalid parameters`, 'error');
         return false;
       }
       
@@ -731,7 +946,7 @@ const LLCVerifier = {
    */
   saveConfig() {
     if (!this.collectConditions()) {
-      this.showStatus('⚠️ 请至少添加一个有效工况', 'error');
+      this.showStatus('⚠️ 请至少添加一个有效工况 | Please add at least one valid condition', 'error');
       return;
     }
     
@@ -776,14 +991,14 @@ const LLCVerifier = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      this.showStatus(`✅ 配置已保存 (${this.conditions.length} 个工况)`, 'success');
+      this.showStatus(`✅ 配置已保存 (${this.conditions.length} 个工况) | Config saved (${this.conditions.length} conditions)`, 'success');
     } catch (error) {
-      this.showStatus('❌ 保存失败：' + error.message, 'error');
+      this.showStatus('❌ 保存失败 | Save failed: ' + error.message, 'error');
     }
   },
 
   /**
-   * 导入配置
+   * 导入配置（仅工况，不导入曲线）
    */
   loadConfig() {
     const input = document.createElement('input');
@@ -800,7 +1015,7 @@ const LLCVerifier = {
           const config = JSON.parse(event.target.result);
           
           if (!config.conditions || !Array.isArray(config.conditions)) {
-            throw new Error('无效的配置文件格式');
+            throw new Error('无效的配置文件格式 | Invalid config file format');
           }
           
           document.getElementById('conditions-container').innerHTML = '';
@@ -853,6 +1068,122 @@ const LLCVerifier = {
           }
           this.renderThermalVarsPanel();
           
+          // 加载 PLECS 路径
+          if (config.plecsToolboxPath) {
+            this.plecsToolboxPath = config.plecsToolboxPath;
+            this.savePlecsToolboxPath();
+            this.updatePlecsPathDisplay();
+          }
+          
+          // 注意：loadConfig 不导入曲线数据，只导入工况配置
+          // 曲线数据通过 loadCurvesConfig 单独导入
+          
+          config.conditions.forEach((cond) => {
+            this.addCondition();
+            const row = document.querySelector(`[data-condition-id="${this.conditionCounter}"]`);
+            if (row) {
+              document.getElementById(`vin-${this.conditionCounter}`).value = cond.Vin || 810;
+              document.getElementById(`vref-${this.conditionCounter}`).value = cond.Vref || 680;
+              document.getElementById(`po-${this.conditionCounter}`).value = cond.Po || 11000;
+              document.getElementById(`rload-${this.conditionCounter}`).value = cond.Rload || 42;
+            }
+          });
+          
+          this.updateConditionInputs();
+          this.showStatus(`✅ 已导入 ${config.conditions.length} 个工况（曲线保持不变）| Imported ${config.conditions.length} conditions (curves unchanged)`, 'success');
+          
+        } catch (error) {
+          this.showStatus('❌ 导入失败 | Import failed: ' + error.message, 'error');
+        }
+      };
+      
+      reader.onerror = () => this.showStatus('❌ 读取文件失败 | Failed to read file', 'error');
+      reader.readAsText(file);
+    };
+    
+    input.click();
+  },
+
+  /**
+   * 一键导入全部（工况 + 曲线）
+   */
+  importAllConfig() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const config = JSON.parse(event.target.result);
+          
+          if (!config.conditions || !Array.isArray(config.conditions)) {
+            throw new Error('无效的配置文件格式 | Invalid config file format');
+          }
+          
+          // 清空现有工况
+          document.getElementById('conditions-container').innerHTML = '';
+          this.conditionCounter = 0;
+          
+          // 加载冻结参数
+          if (config.frozenParams) {
+            this.frozenParams = {
+              Cr_p: config.frozenParams.Cr_p,
+              Cr_s: config.frozenParams.Cr_s,
+              Lr: config.frozenParams.Lr,
+              Lm: config.frozenParams.Lm,
+              Np: config.frozenParams.Np,
+              Ns: config.frozenParams.Ns,
+              Np_cap: config.frozenParams.Np_cap || 1,
+              Ns_cap: config.frozenParams.Ns_cap || 1
+            };
+            this.updateFrozenDisplay();
+          }
+          
+          // 加载 MOSFET 模型
+          if (config.mosfetModels) {
+            this.mosfetModels.pri = config.mosfetModels.pri || null;
+            this.mosfetModels.sec = config.mosfetModels.sec || null;
+            localStorage.setItem('llc-verifier-mos-pri', this.mosfetModels.pri || '');
+            localStorage.setItem('llc-verifier-mos-sec', this.mosfetModels.sec || '');
+          }
+          
+          // 加载热仿真设置
+          if (config.thermalSettings) {
+            this.thermalSettings.enabled = config.thermalSettings.enabled || false;
+            this.thermalSettings.Tvj = config.thermalSettings.Tvj || 130;
+            
+            const thermalCheckbox = document.getElementById('thermal-sim-enable');
+            const tvjInput = document.getElementById('tvj-input');
+            if (thermalCheckbox) thermalCheckbox.checked = this.thermalSettings.enabled;
+            if (tvjInput) tvjInput.value = this.thermalSettings.Tvj;
+            
+            this.saveThermalSettings();
+          }
+          
+          // 加载热模型变量
+          if (config.thermalVarsStruct) {
+            this.thermalVarsStruct = config.thermalVarsStruct;
+          }
+          if (config.thermalVarsListPri) {
+            this.thermalVarsListPri = config.thermalVarsListPri;
+          }
+          if (config.thermalVarsListSec) {
+            this.thermalVarsListSec = config.thermalVarsListSec;
+          }
+          this.renderThermalVarsPanel();
+          
+          // 加载 PLECS 路径
+          if (config.plecsToolboxPath) {
+            this.plecsToolboxPath = config.plecsToolboxPath;
+            this.savePlecsToolboxPath();
+            this.updatePlecsPathDisplay();
+          }
+          
           // 加载曲线数据
           if (config.curveDefinitions) {
             Object.keys(config.curveDefinitions).forEach(key => {
@@ -873,7 +1204,6 @@ const LLCVerifier = {
               const checkbox = document.getElementById(`${this.keyToId(key)}-enable`);
               if (checkbox) {
                 checkbox.checked = this.curveEnabled[key];
-                // 更新卡片视觉状态
                 const card = document.getElementById(`card-${this.keyToId(key)}`);
                 if (card) {
                   if (this.curveEnabled[key]) {
@@ -886,6 +1216,7 @@ const LLCVerifier = {
             });
           }
           
+          // 加载工况
           config.conditions.forEach((cond) => {
             this.addCondition();
             const row = document.querySelector(`[data-condition-id="${this.conditionCounter}"]`);
@@ -898,14 +1229,14 @@ const LLCVerifier = {
           });
           
           this.updateConditionInputs();
-          this.showStatus(`✅ 已导入 ${config.conditions.length} 个工况`, 'success');
+          this.showStatus(`✅ 已导入全部配置（${config.conditions.length} 个工况 + 曲线）| Imported all config (${config.conditions.length} conditions + curves)`, 'success');
           
         } catch (error) {
-          this.showStatus('❌ 导入失败：' + error.message, 'error');
+          this.showStatus('❌ 导入失败 | Import failed: ' + error.message, 'error');
         }
       };
       
-      reader.onerror = () => this.showStatus('❌ 读取文件失败', 'error');
+      reader.onerror = () => this.showStatus('❌ 读取文件失败 | Failed to read file', 'error');
       reader.readAsText(file);
     };
     
@@ -935,7 +1266,7 @@ const LLCVerifier = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      this.showStatus('✅ 曲线配置已保存', 'success');
+      this.showStatus('✅ 曲线配置已保存 | Curve config saved', 'success');
     } catch (error) {
       this.showStatus('❌ 保存曲线失败：' + error.message, 'error');
     }
@@ -959,7 +1290,7 @@ const LLCVerifier = {
           const config = JSON.parse(event.target.result);
           
           if (!config.curveDefinitions) {
-            throw new Error('无效的曲线配置文件');
+            throw new Error('无效的曲线配置文件 | Invalid curve config file');
           }
           
           // 加载曲线数据
@@ -996,14 +1327,14 @@ const LLCVerifier = {
           });
           
           this.updateConditionInputs();
-          this.showStatus('✅ 曲线配置已导入', 'success');
+          this.showStatus('✅ 曲线配置已导入 | Curve config imported', 'success');
           
         } catch (error) {
           this.showStatus('❌ 导入曲线失败：' + error.message, 'error');
         }
       };
       
-      reader.onerror = () => this.showStatus('❌ 读取文件失败', 'error');
+      reader.onerror = () => this.showStatus('❌ 读取文件失败 | Failed to read file', 'error');
       reader.readAsText(file);
     };
     
@@ -1015,16 +1346,16 @@ const LLCVerifier = {
    */
   runSimulation() {
     if (!this.collectConditions()) {
-      this.showStatus('⚠️ 请至少添加一个有效工况', 'error');
+      this.showStatus('⚠️ 请至少添加一个有效工况 | Please add at least one valid condition', 'error');
       return;
     }
     
     if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
-      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"更新冻结参数"从设计页同步。');
+      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"更新冻结参数"从设计页同步。\n\n⚠️ Frozen parameters may not be set. Continue?\n\nRecommended to click "Update Frozen Parameters" first.');
       if (!confirmed) return;
     }
     
-    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置和热模型变量）
+    // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置、热模型变量和 PLECS 路径）
     const simulationData = {
       frozenParams: {
         Cr_p: this.frozenParams.Cr_p,
@@ -1045,6 +1376,7 @@ const LLCVerifier = {
         Tvj: this.thermalSettings.Tvj || 130
       },
       thermalVarsStruct: this.thermalVarsStruct,  // 热模型变量结构体
+      plecsToolboxPath: this.plecsToolboxPath || null,  // PLECS 工具箱路径
       curveDefinitions: this.curveDefinitions,
       curveEnabled: this.curveEnabled,
       conditions: this.conditions,
@@ -1064,12 +1396,12 @@ const LLCVerifier = {
     
     // 提示用户手动运行 bat
     alert(
-      '✅ verify_input.json 已生成并下载\n\n' +
-      '请按以下步骤操作：\n' +
-      '1. 将 verify_input.json 移动到 src-designer 目录\n' +
-      '2. 双击运行 verify-sim.bat\n' +
-      '3. 等待仿真完成，Excel 文件将自动保存\n\n' +
-      '工作目录：/home/admin/.openclaw/workspace/src/tools/src-designer'
+      '✅ verify_input.json 已生成并下载 | verify_input.json generated and downloaded\n\n' +
+      '请按以下步骤操作 | Please follow these steps:\n' +
+      '1. 将 verify_input.json 移动到 src-designer 目录 | Move verify_input.json to src-designer folder\n' +
+      '2. 双击运行 verify-sim.bat | Double-click verify-sim.bat\n' +
+      '3. 等待仿真完成，Excel 文件将自动保存 | Wait for simulation to complete, Excel will auto-save\n\n' +
+      '工作目录 | Working directory: /home/admin/.openclaw/workspace/src/tools/src-designer'
     );
   },
 
@@ -1108,7 +1440,7 @@ const LLCVerifier = {
           
           if (fullPath && fullPath.trim()) {
             // 统一路径格式：将反斜杠转为正斜杠
-            const finalPath = fullPath.trim().replace(/\\\\/g, '/');
+            const finalPath = fullPath.trim().replace(/\\/g, '/');
             
             if (side === 'pri') {
               this.mosfetModels.pri = finalPath;
@@ -1143,13 +1475,13 @@ const LLCVerifier = {
             this.renderThermalVarsPanel();
             this.saveThermalVars();
             
-            this.showStatus(`✅ ${side === 'pri' ? '原边' : '副边'}模型已导入：${finalPath}`, 'success');
+            this.showStatus(`✅ ${side === 'pri' ? '原边' : '副边'}模型已导入 | ${side === 'pri' ? 'Primary' : 'Secondary'} model imported: ${finalPath}`, 'success');
           }
         } catch (error) {
-          this.showStatus('❌ 解析 XML 失败：' + error.message, 'error');
+          this.showStatus('❌ 解析 XML 失败 | XML parse failed: ' + error.message, 'error');
         }
       };
-      reader.onerror = () => this.showStatus('❌ 读取文件失败', 'error');
+      reader.onerror = () => this.showStatus('❌ 读取文件失败 | Failed to read file', 'error');
       reader.readAsText(file);
     };
     
@@ -1287,18 +1619,25 @@ const LLCVerifier = {
    * 加载热模型变量
    */
   loadThermalVars() {
-    try {
-      const saved = localStorage.getItem('llc-verifier-thermal-vars');
-      if (saved) {
-        const data = JSON.parse(saved);
+    const savedVars = localStorage.getItem('llc-verifier-thermal-vars');
+    if (savedVars) {
+      try {
+        const data = JSON.parse(savedVars);
         this.thermalVarsListPri = data.varsListPri || [];
         this.thermalVarsListSec = data.varsListSec || [];
         this.thermalVarsStruct = data.varsStruct || {};
-        this.renderThermalVarsPanel();
+      } catch (e) {
+        this.thermalVarsListPri = [];
+        this.thermalVarsListSec = [];
+        this.thermalVarsStruct = {};
       }
-    } catch (e) {
-      console.error('加载热模型变量失败:', e);
+    } else {
+      this.thermalVarsListPri = [];
+      this.thermalVarsListSec = [];
+      this.thermalVarsStruct = {};
     }
+    
+    this.renderThermalVarsPanel();
   },
   
   /**
@@ -1311,7 +1650,7 @@ const LLCVerifier = {
       this.thermalVarsStruct = {};
       this.saveThermalVars();
       this.renderThermalVarsPanel();
-      this.showStatus('🗑️ 已清空热模型变量', 'success');
+      this.showStatus('🗑️ 已清空热模型变量 | Thermal variables cleared', 'success');
     }
   },
   
@@ -1331,20 +1670,12 @@ const LLCVerifier = {
    */
   loadThermalSettings() {
     try {
-      // 加载 MOSFET 模型路径
-      const savedMosPri = localStorage.getItem('llc-verifier-mos-pri');
-      const savedMosSec = localStorage.getItem('llc-verifier-mos-sec');
-      if (savedMosPri) this.mosfetModels.pri = savedMosPri;
-      if (savedMosSec) this.mosfetModels.sec = savedMosSec;
-      
-      // 加载热仿真设置
       const savedThermal = localStorage.getItem('llc-verifier-thermal');
       if (savedThermal) {
         const settings = JSON.parse(savedThermal);
         this.thermalSettings.enabled = settings.enabled || false;
         this.thermalSettings.Tvj = settings.Tvj || 130;
         
-        // 恢复 UI 状态
         const thermalCheckbox = document.getElementById('thermal-sim-enable');
         const tvjInput = document.getElementById('tvj-input');
         if (thermalCheckbox) thermalCheckbox.checked = this.thermalSettings.enabled;
@@ -1359,7 +1690,11 @@ const LLCVerifier = {
    * 导入规格书
    */
   importDatasheet() {
-    alert('📄 导入规格书\n\n请将名为 CapVoltage 和名为 CapCurrent 的文件存入当前文件夹。\n\n若没有该文件，则使用 WebPlotDigitizer 绘制。');
+    alert('📄 导入规格书 | Import Datasheet\n\n' +
+          '请将名为 CapVoltage 和名为 CapCurrent 的文件存入当前文件夹。\n' +
+          'Please place files named CapVoltage and CapCurrent in the current folder.\n\n' +
+          '若没有该文件，则使用 WebPlotDigitizer 绘制。\n' +
+          'If not available, use WebPlotDigitizer to extract data.');
   },
 
   /**
@@ -1372,7 +1707,7 @@ const LLCVerifier = {
       this.conditionCounter = 0;
       this.conditions = [];
       this.addCondition();
-      this.showStatus('🗑️ 已清空', 'success');
+      this.showStatus('🗑️ 已清空 | Cleared', 'success');
     }
   },
 

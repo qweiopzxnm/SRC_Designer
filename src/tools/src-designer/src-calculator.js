@@ -176,12 +176,15 @@ const LLCCalculator = {
       Np_cap,
       Ns_cap,
       Lr_p_uH,
+      Lm_uH,
       // 用于显示偏离度
       Cr_target_nF,
       Ceq_nF: Ceq * 1e9,
       deviation_pct: ((Ceq * 1e9 - Cr_target_nF) / Cr_target_nF) * 100,
       // 推荐单颗电容值
       recommended_C_unit: recommended_C_unit,
+      // 电感比
+      k: k,
       // 新增：Lm 和 k 值
       Lm,
       Lm_uH,

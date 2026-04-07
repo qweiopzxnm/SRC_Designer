@@ -10,127 +10,207 @@
   <div class="container">
     <header>
       <h1>⚡ LLC 设计工具</h1>
-      <p class="subtitle">LLC 谐振变换器自动设计与优化</p>
+      <p class="subtitle">LLC 谐振变换器自动设计与优化 | LLC Resonant Converter Auto-Design & Optimization</p>
     </header>
 
     <main>
       <!-- 输入面板 -->
       <section class="panel input-panel">
-        <h2>📋 设计参数 (Dsnpara)</h2>
+        <h2>📋 设计参数 | Design Parameters (Dsnpara)</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="Vin_max">最大输入电压 Vin_max (V)</label>
-            <input type="number" id="Vin_max" value="810" step="10">
+            <label for="Vin_max">
+              最大输入电压 Vin_max (V)
+              <span class="label-en">Max Input Voltage</span>
+            </label>
+            <input type="number" id="Vin_max" value="" step="10">
           </div>
           <div class="form-group">
-            <label for="Vo_nom">额定输出电压 Vo_nom (V)</label>
-            <input type="number" id="Vo_nom" value="680" step="1">
+            <label for="Vo_nom">
+              额定输出电压 Vo_nom (V)
+              <span class="label-en">Rated Output Voltage</span>
+            </label>
+            <input type="number" id="Vo_nom" value="" step="1">
           </div>
           <div class="form-group">
-            <label for="Po">输出功率 Po (W)</label>
-            <input type="number" id="Po" value="11000" step="100">
+            <label for="Po">
+              输出功率 Po (W)
+              <span class="label-en">Output Power</span>
+            </label>
+            <input type="number" id="Po" value="" step="100">
           </div>
           <div class="form-group">
-            <label for="fr">谐振频率 fr (kHz)</label>
-            <input type="number" id="fr" value="130" step="5">
+            <label for="fr">
+              谐振频率 fr (kHz)
+              <span class="label-en">Resonant Frequency</span>
+            </label>
+            <input type="number" id="fr" value="" step="5">
           </div>
           <div class="form-group">
-            <label for="Np">原边匝数 Np</label>
-            <input type="number" id="Np" value="24" step="1">
+            <label for="Np">
+              原边匝数 Np
+              <span class="label-en">Primary Turns</span>
+            </label>
+            <input type="number" id="Np" value="" step="1">
           </div>
           <div class="form-group">
-            <label for="Ns">副边匝数 Ns</label>
-            <input type="number" id="Ns" value="23" step="1">
+            <label for="Ns">
+              副边匝数 Ns
+              <span class="label-en">Secondary Turns</span>
+            </label>
+            <input type="number" id="Ns" value="" step="1">
           </div>
           <div class="form-group">
-            <label for="Q">品质因数 Q</label>
-            <input type="number" id="Q" value="0.62" step="0.01" min="0.1" max="2">
-            <small>典型值 0.3-1.0</small>
+            <label for="Q">
+              品质因数 Q
+              <span class="label-en">Quality Factor</span>
+            </label>
+            <input type="number" id="Q" value="" step="0.01" min="0.1" max="2">
+            <small>典型值 0.3-1.0 | Typical: 0.3-1.0</small>
           </div>
           <div class="form-group">
-            <label for="fs_ratio">最小开关频率比 fs_min/fr</label>
-            <input type="number" id="fs_ratio" value="1.2" step="0.1" min="1.0" max="2.0">
+            <label for="fs_ratio">
+              最小开关频率比 fs_min/fr
+              <span class="label-en">Min Switch Freq Ratio</span>
+            </label>
+            <input type="number" id="fs_ratio" value="" step="0.1" min="1.0" max="2.0">
           </div>
           <div class="form-group">
-            <label for="C_unit">单颗电容容量 (nF)</label>
-            <input type="number" id="C_unit" value="47" step="1" min="1">
-            <small id="c_unit_hint">用于计算并联数量</small>
+            <label for="C_unit">
+              单颗电容容量 (nF)
+              <span class="label-en">Single Capacitor Value</span>
+            </label>
+            <input type="number" id="C_unit" value="" step="1" min="1">
+            <small id="c_unit_hint">用于计算并联数量 | Used to calculate parallel count</small>
           </div>
           <div class="form-group">
-            <label for="L_step">电感分辨率 (μH)</label>
-            <input type="number" id="L_step" value="1" step="0.1" min="0.1">
-            <small>电感值按此分辨率取整</small>
+            <label for="L_step">
+              电感分辨率 (μH)
+              <span class="label-en">Inductance Resolution</span>
+            </label>
+            <input type="number" id="L_step" value="" step="0.1" min="0.1">
+            <small>电感值按此分辨率取整 | Round inductance to this resolution</small>
           </div>
           <div class="form-group">
-            <label for="Lm">励磁电感 Lm (μH)</label>
-            <input type="number" id="Lm" value="400" step="10" min="50">
-            <small>典型值为 Lr 的 3-6 倍</small>
+            <label for="Lm">
+              励磁电感 Lm (μH)
+              <span class="label-en">Magnetizing Inductance</span>
+            </label>
+            <input type="number" id="Lm" value="" step="10" min="50">
+            <small>典型值为 Lr 的 3-6 倍 | Typical: 3-6× Lr</small>
           </div>
         </div>
         <div class="button-group">
-          <button id="btn-calculate" class="btn btn-primary">🔧 计算</button>
-          <button id="btn-reset" class="btn btn-outline">🔄 重置</button>
+          <button id="btn-calculate" class="btn btn-primary">
+            🔧 计算
+            <span class="btn-en">Calculate</span>
+          </button>
+          <button id="btn-reset" class="btn btn-outline">
+            🔄 重置
+            <span class="btn-en">Reset</span>
+          </button>
+          <button id="btn-save-config" class="btn btn-outline">
+            💾 保存配置
+            <span class="btn-en">Save Config</span>
+          </button>
+          <button id="btn-load-config" class="btn btn-outline">
+            📂 导入配置
+            <span class="btn-en">Load Config</span>
+          </button>
         </div>
       </section>
 
       <!-- 结果面板 -->
       <section class="panel results-panel" id="results-panel">
-        <h2>📊 计算结果</h2>
+        <h2>📊 计算结果 | Calculation Results</h2>
         
         <!-- 设计参数 -->
         <div class="result-section">
-          <h3>设计参数 (Dsnpara)</h3>
+          <h3>设计参数 | Design Parameters (Dsnpara)</h3>
           <div class="result-grid">
             <div class="result-item">
-              <span class="label">电压增益 M</span>
+              <span class="label">
+                电压增益 M
+                <span class="label-en">Voltage Gain</span>
+              </span>
               <span class="value" id="dsn-M">-</span>
             </div>
             <div class="result-item">
-              <span class="label">变压器匝比</span>
+              <span class="label">
+                变压器匝比
+                <span class="label-en">Transformer Turns Ratio</span>
+              </span>
               <span class="value" id="dsn-Tratio">-</span>
               <span class="unit">Np:Ns</span>
             </div>
             <div class="result-item">
-              <span class="label">总增益 Gain</span>
+              <span class="label">
+                总增益 Gain
+                <span class="label-en">Total Gain</span>
+              </span>
               <span class="value" id="dsn-Gain">-</span>
             </div>
             <div class="result-item">
-              <span class="label">等效交流电阻 Rac</span>
+              <span class="label">
+                等效交流电阻 Rac
+                <span class="label-en">Equivalent AC Resistance</span>
+              </span>
               <span class="value" id="dsn-Rac">-</span>
               <span class="unit">Ω</span>
             </div>
             <div class="result-item">
-              <span class="label">反射电阻 Racp</span>
+              <span class="label">
+                反射电阻 Racp
+                <span class="label-en">Reflected Resistance</span>
+              </span>
               <span class="value" id="dsn-Racp">-</span>
               <span class="unit">Ω</span>
             </div>
             <div class="result-item">
-              <span class="label">特征阻抗 Zr</span>
+              <span class="label">
+                特征阻抗 Zr
+                <span class="label-en">Characteristic Impedance</span>
+              </span>
               <span class="value" id="dsn-Zr">-</span>
               <span class="unit">Ω</span>
             </div>
             <div class="result-item">
-              <span class="label">谐振电感 Lr</span>
+              <span class="label">
+                谐振电感 Lr
+                <span class="label-en">Resonant Inductance</span>
+              </span>
               <span class="value" id="dsn-Lr">-</span>
               <span class="unit">μH</span>
             </div>
             <div class="result-item">
-              <span class="label">谐振电容 Cr</span>
+              <span class="label">
+                谐振电容 Cr
+                <span class="label-en">Resonant Capacitance</span>
+              </span>
               <span class="value" id="dsn-Cr">-</span>
               <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">最小开关频率 fs_min</span>
+              <span class="label">
+                最小开关频率 fs_min
+                <span class="label-en">Min Switching Frequency</span>
+              </span>
               <span class="value" id="dsn-fs_min">-</span>
               <span class="unit">kHz</span>
             </div>
             <div class="result-item">
-              <span class="label">谐振腔电压 Vintank</span>
+              <span class="label">
+                谐振腔电压 Vintank
+                <span class="label-en">Resonant Tank Voltage</span>
+              </span>
               <span class="value" id="dsn-Vintank">-</span>
               <span class="unit">V</span>
             </div>
             <div class="result-item">
-              <span class="label">谐振电流峰值 Irpk</span>
+              <span class="label">
+                谐振电流峰值 Irpk
+                <span class="label-en">Resonant Current Peak</span>
+              </span>
               <span class="value" id="dsn-Irpk">-</span>
               <span class="unit">A</span>
             </div>
@@ -139,75 +219,202 @@
 
         <!-- 实际选定参数 -->
         <div class="result-section">
-          <h3>实际选定参数 (Actpara)</h3>
+          <h3>实际选定参数 | Actual Parameters (Actpara) <button id="btn-edit-act" class="btn btn-outline" style="font-size: 12px; padding: 4px 8px; margin-left: 10px;">✏️ 编辑 | Edit</button></h3>
           <div class="result-grid">
             <div class="result-item">
-              <span class="label">原边谐振电容 Cr_p</span>
-              <span class="value" id="act-Cr_p">-</span>
+              <span class="label">
+                变压器变比 N
+                <span class="label-en">Transformer Ratio</span>
+              </span>
+              <span class="value"><span id="act-Np">-</span>:<span id="act-Ns">-</span> (<span id="act-Tratio">-</span>)</span>
+            </div>
+            <div class="result-item">
+              <span class="label">
+                电容分辨率 C_unit
+                <span class="label-en">Capacitance Resolution</span>
+              </span>
+              <span class="value" id="act-C_unit">-</span>
               <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">原边电容并联数量</span>
+              <span class="label">
+                原边电容并联数量
+                <span class="label-en">Primary Caps in Parallel</span>
+              </span>
               <span class="value" id="act-Np_cap">-</span>
               <span class="unit">颗</span>
             </div>
             <div class="result-item">
-              <span class="label">副边谐振电容 Cr_s</span>
-              <span class="value" id="act-Cr_s">-</span>
+              <span class="label">
+                原边谐振电容 Cr_p
+                <span class="label-en">Primary Resonant Capacitance</span>
+              </span>
+              <span class="value" id="act-Cr_p">-</span>
               <span class="unit">nF</span>
+              <span class="unit" style="font-size: 10px; color: #9ca3af;">= C_unit × Np_cap</span>
             </div>
             <div class="result-item">
-              <span class="label">副边电容并联数量</span>
+              <span class="label">
+                副边电容并联数量
+                <span class="label-en">Secondary Caps in Parallel</span>
+              </span>
               <span class="value" id="act-Ns_cap">-</span>
               <span class="unit">颗</span>
             </div>
             <div class="result-item">
-              <span class="label">原边谐振电感 Lr_p</span>
+              <span class="label">
+                副边谐振电容 Cr_s
+                <span class="label-en">Secondary Resonant Capacitance</span>
+              </span>
+              <span class="value" id="act-Cr_s">-</span>
+              <span class="unit">nF</span>
+              <span class="unit" style="font-size: 10px; color: #9ca3af;">= C_unit × Ns_cap</span>
+            </div>
+            <div class="result-item">
+              <span class="label">
+                原边谐振电感 Lr_p
+                <span class="label-en">Primary Resonant Inductance</span>
+              </span>
               <span class="value" id="act-Lr_p">-</span>
               <span class="unit">μH</span>
             </div>
             <div class="result-item">
-              <span class="label">等效电容 Ceq</span>
+              <span class="label">
+                等效电容 Ceq
+                <span class="label-en">Equivalent Capacitance</span>
+              </span>
               <span class="value" id="act-Ceq">-</span>
               <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">设计电容 Cr</span>
+              <span class="label">
+                设计电容 Cr
+                <span class="label-en">Target Capacitance</span>
+              </span>
               <span class="value" id="act-Cr_target">-</span>
               <span class="unit">nF</span>
             </div>
             <div class="result-item">
-              <span class="label">Ceq 偏离度</span>
+              <span class="label">
+                Ceq 偏离度
+                <span class="label-en">Ceq Deviation</span>
+              </span>
               <span class="value" id="act-deviation">-</span>
               <span class="unit">%</span>
             </div>
             <div class="result-item">
-              <span class="label">实际 Q 值</span>
+              <span class="label">
+                实际 Q 值
+                <span class="label-en">Actual Q Factor</span>
+              </span>
               <span class="value" id="act-Q">-</span>
             </div>
             <div class="result-item">
-              <span class="label">实际谐振频率</span>
+              <span class="label">
+                实际谐振频率
+                <span class="label-en">Actual Resonant Frequency</span>
+              </span>
               <span class="value" id="act-fr">-</span>
               <span class="unit">kHz</span>
             </div>
             <div class="result-item">
-              <span class="label">电感比 k (Lm/Lr)</span>
+              <span class="label">
+                电感比 k (Lm/Lr)
+                <span class="label-en">Inductance Ratio</span>
+              </span>
               <span class="value" id="act-k">-</span>
+            </div>
+          </div>
+          
+          <!-- 改动前后对比面板 -->
+          <div id="act-compare-panel" style="display: none; margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 8px; border: 1px solid #3b82f6;">
+            <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px;">📊 参数改动对比 | Parameter Comparison</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  变压器变比 N | Transformer Ratio
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-tratio-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-tratio-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  等效电容 Ceq | Equivalent Capacitance
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-ceq-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-ceq-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-ceq-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  谐振频率 fr | Resonant Frequency
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-fr-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-fr-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-fr-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  Q 值 | Q Factor
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-q-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-q-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-q-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- 设计报告 -->
         <div class="result-section">
-          <h3>📄 设计报告</h3>
+          <h3>📄 设计报告 | Design Report</h3>
           <pre id="design-report"></pre>
         </div>
 
       </section>
     </main>
 
-    <div class="button-group" style="margin-top:20px;"><button id="btn-verify" class="btn btn-outline" onclick="window.location.href='verify.html'">🔍 切换到验证页</button></div><footer>
-      <p>LLC 设计工具</p>
+    <div class="button-group" style="margin-top:20px;">
+      <button id="btn-verify" class="btn btn-outline" onclick="window.location.href='verify.html'">
+        🔍 切换到验证页
+        <span class="btn-en">Go to Verifier</span>
+      </button>
+    </div>
+    <footer>
+      <p>LLC 设计工具 | LLC Design Tool</p>
     </footer>
   </div>
 
