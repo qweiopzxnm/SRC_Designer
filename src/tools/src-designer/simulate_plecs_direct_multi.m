@@ -166,6 +166,7 @@ function simulate_plecs_direct_multi()
         end
         
         finalReport.frozenParams = frozenParams;
+        finalReport.marginSettings = simData.marginSettings;
         finalReport.conditions = allResults;
         save_results_to_excel('Simulation_Report.xlsx', finalReport);
         fprintf('\nDone! Report generated.\n');
@@ -181,6 +182,13 @@ function save_results_to_excel(filename, data)
         conds_cell = data.conditions;
         numCond = length(conds_cell);
         fp = data.frozenParams;
+
+        % --- 获取电容裕量设置 ---
+        vMargin = 1.0; iMargin = 1.0; % 默认 100%
+        if isfield(data, 'marginSettings')
+            vMargin = data.marginSettings.voltageMargin / 100;
+            iMargin = data.marginSettings.currentMargin / 100;
+        end
         
         % --- 1. 排序 ---
         vrefs = cellfun(@(x) x.Vref, conds_cell);
@@ -250,8 +258,18 @@ function save_results_to_excel(filename, data)
         writecell({'Helper_Freq', 'Helper_VppP', 'Helper_VppS', 'Helper_IP', 'Helper_IS'}, filename, 'Sheet', 'Main', 'Range', 'AZ1');
         writecell(helperTable, filename, 'Sheet', 'Main', 'Range', 'AZ2');
         
-        hasISpec = isfile('CapCurrent.csv'); if hasISpec, writetable(readtable('CapCurrent.csv'), filename, 'Sheet', 'CapCurrentSpec'); end
-        hasVSpec = isfile('CapVoltage.csv'); if hasVSpec, writetable(readtable('CapVoltage.csv'), filename, 'Sheet', 'CapVoltageSpec'); end
+        hasISpec = isfile('CapCurrent.csv'); 
+        if hasISpec
+            tI = readtable('CapCurrent.csv');
+            tI.Margin_Limit = tI{:,2} * iMargin; % 计算电流裕量并存入第3列
+            writetable(tI, filename, 'Sheet', 'CapCurrentSpec'); 
+        end
+        hasVSpec = isfile('CapVoltage.csv'); 
+        if hasVSpec
+            tV = readtable('CapVoltage.csv');
+            tV.Margin_Limit = tV{:,2} * vMargin; % 计算电压裕量并存入第3列
+            writetable(tV, filename, 'Sheet', 'CapVoltageSpec'); 
+        end
 
         % --- 6. ActiveX 绘图与上色 ---
         Excel = actxserver('Excel.Application');
@@ -323,6 +341,16 @@ function save_results_to_excel(filename, data)
             SpecSheet = WB.Sheets.Item('CapCurrentSpec'); lastR = SpecSheet.UsedRange.Rows.Count;
             S3 = CI.SeriesCollection.NewSeries; S3.XValues = SpecSheet.Range(sprintf('A2:A%d', lastR)); S3.Values = SpecSheet.Range(sprintf('B2:B%d', lastR)); 
             S3.Name = 'Spec_Limit'; S3.Format.Line.ForeColor.RGB = 255;
+            S4 = CI.SeriesCollection.NewSeries; 
+            S4.XValues = SpecSheet.Range(sprintf('A2:A%d', lastR)); 
+            S4.Values = SpecSheet.Range(sprintf('C2:C%d', lastR)); % 指向 C 列
+            S4.Name = 'Margin_Limit'; 
+            S4.MarkerStyle = -4142;
+            S4.Format.Line.DashStyle = 11;
+            S4.Format.Line.ForeColor.RGB = 8421504; 
+            S4.Format.Line.Weight = 1.25;
+            S4.Format.Line.Transparency = 0.1;
+            
             CI.HasTitle = true; CI.ChartTitle.Text = 'Cap Current Stress vs Freq'; chartTop = chartTop + 320;
         end
         if hasVSpec
@@ -332,6 +360,15 @@ function save_results_to_excel(filename, data)
             SpecVSheet = WB.Sheets.Item('CapVoltageSpec'); lastR = SpecVSheet.UsedRange.Rows.Count;
             SV3 = CV.SeriesCollection.NewSeries; SV3.XValues = SpecVSheet.Range(sprintf('A2:A%d', lastR)); SV3.Values = SpecVSheet.Range(sprintf('B2:B%d', lastR));
             SV3.Name = 'Spec_Vpp_Limit'; SV3.Format.Line.ForeColor.RGB = 255;
+            SV4 = CV.SeriesCollection.NewSeries; 
+            SV4.XValues = SpecVSheet.Range(sprintf('A2:A%d', lastR)); 
+            SV4.Values = SpecVSheet.Range(sprintf('C2:C%d', lastR)); % 指向 C 列
+            SV4.Name = 'Margin_Vpp_Limit'; 
+            SV4.Format.Line.DashStyle = 11;
+            SV4.Format.Line.ForeColor.RGB = 8421504; 
+            SV4.Format.Line.Weight = 1.25;
+            SV4.Format.Line.Transparency = 0.1;
+            
             CV.HasTitle = true; CV.ChartTitle.Text = 'Cap Voltage P-P vs Freq'; chartTop = chartTop + 320;
         end
 
@@ -382,6 +419,7 @@ function simData = read_verify_json(filename)
     simData.thermalSettings = decoded.thermalSettings;
     simData.thermalVarsStruct = decoded.thermalVarsStruct;
     simData.plecsToolboxPath = decoded.plecsToolboxPath;
+    simData.marginSettings = decoded.marginSettings;
 end
 
 %% 定义解析模型函数
