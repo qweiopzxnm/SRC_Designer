@@ -231,7 +231,7 @@ const LLCDesigner = {
     document.getElementById('act-Lr_p').textContent = ((act.Lr_p_uH || act.Lr_p * 1e6) || 0).toFixed(1);
     
     // 新增：Lm
-    document.getElementById('act-Lm').textContent = (act.Lm_uH || 0).toFixed(1);
+    document.getElementById('act-Lm').textContent = (act.Lm_uH || act.Lm * 1e6 || 0).toFixed(1);
     
     // 等效电容：LLC 模式下 Ceq = Cr_p
     const Ceq_nF = isLLC ? Cr_p_nF : (act.Ceq * 1e9);
@@ -430,8 +430,7 @@ const LLCDesigner = {
         Cr_p: act.Cr_p,
         Cr_s: act.Cr_s,
         Lr: act.Lr_p,
-        Lm: act.Lm,
-        Lm_uH: act.Lm_uH,
+        Lm_uH: act.Lm_uH,  // 统一使用 Lm_uH
         Np: act.Np || dsn.Np,
         Ns: act.Ns || dsn.Ns,
         Tratio: act.Tratio || (act.Np || dsn.Np) / (act.Ns || dsn.Ns),
@@ -645,7 +644,6 @@ const LLCDesigner = {
       this.currentResults.act.Cr_s = Cr_s;
       this.currentResults.act.Lr_p = Lr_p;
       this.currentResults.act.Lr_p_uH = Lr_p_uH;
-      this.currentResults.act.Lm = Lm;
       this.currentResults.act.Lm_uH = Lm_uH;
       this.currentResults.act.Ceq = Ceq;
       this.currentResults.act.deviation_pct = deviation_pct;

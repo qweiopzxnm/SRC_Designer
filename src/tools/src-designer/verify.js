@@ -13,7 +13,7 @@ const LLCVerifier = {
     Cr_p: null,
     Cr_s: null,
     Lr: null,
-    Lm: null,
+    Lm_uH: null,
     Np: null,
     Ns: null,
     Np_cap: null,
@@ -381,12 +381,12 @@ const LLCVerifier = {
         this.topologyMode = results.topologyMode || 'SRC';
         
         // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
-        if (!results.Cr_p || !results.Lr || !results.Lm) {
+        if (!results.Cr_p || !results.Lr || !results.Lm_uH) {
           this.frozenParams = {
             Cr_p: null,
             Cr_s: null,
             Lr: null,
-            Lm: null,
+            Lm_uH: null,
             Np: null,
             Ns: null,
             Np_cap: null,
@@ -401,14 +401,14 @@ const LLCVerifier = {
           Cr_p: results.Cr_p * 1e9,  // F → nF
           Cr_s: results.Cr_s * 1e9,  // F → nF
           Lr: results.Lr * 1e6,      // H → μH
-          Lm: results.Lm_uH,         // 已经是 μH
+          Lm_uH: results.Lm_uH,      // 已经是 μH
           Np: results.Np,
           Ns: results.Ns,
           Np_cap: results.Np_cap || 1,
           Ns_cap: results.Ns_cap || 1
         };
         
-        if (newParams.Lm && typeof newParams.Lm === 'number' && isFinite(newParams.Lm)) {
+        if (newParams.Lm_uH && typeof newParams.Lm_uH === 'number' && isFinite(newParams.Lm_uH)) {
           // 检查参数是否发生变化
           const hasChanged = this.frozenParams.Cr_p !== newParams.Cr_p || 
                             this.frozenParams.Cr_s !== newParams.Cr_s ||
@@ -428,7 +428,7 @@ const LLCVerifier = {
           Cr_p: null,
           Cr_s: null,
           Lr: null,
-          Lm: null,
+          Lm_uH: null,
           Np: null,
           Ns: null,
           Np_cap: null,
@@ -463,7 +463,7 @@ const LLCVerifier = {
     }
     
     document.getElementById('frozen-Lr').textContent = fp.Lr ? fp.Lr.toFixed(1) : '-';
-    document.getElementById('frozen-Lm').textContent = fp.Lm ? fp.Lm.toFixed(1) : '-';
+    document.getElementById('frozen-Lm').textContent = fp.Lm_uH ? fp.Lm_uH.toFixed(1) : '-';
     document.getElementById('frozen-Np').textContent = fp.Np || '-';
     document.getElementById('frozen-Ns').textContent = fp.Ns || '-';
     document.getElementById('frozen-Np-cap').textContent = fp.Np_cap || '-';
@@ -605,10 +605,10 @@ const LLCVerifier = {
       try {
         this.frozenParams = JSON.parse(savedParams);
       } catch (e) {
-        this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
+        this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm_uH: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
       }
     } else {
-      this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
+      this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm_uH: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
     }
     
     this.paramsLocked = savedLocked === 'true';

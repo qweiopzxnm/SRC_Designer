@@ -10,7 +10,7 @@ const LLCCalculator = {
    * @returns {Object} Dsnpara 结构体
    */
   calculateDsnpara(params) {
-    const { Vin_max, Vo_nom, Po, fr, Np, Ns, Q, fs_ratio } = params;
+    const { Vin_max, Vo_nom, Po, fr, Np, Ns, Q, fs_ratio, Lm_uH } = params;
 
     // 基本参数
     const fr_Hz = fr * 1000; // 转 Hz
@@ -69,7 +69,7 @@ const LLCCalculator = {
       Irpk,
       k,           // 电感比
       frLLC,       // LLC 谐振频率
-      Lm,          // 励磁电感
+      Lm,          // 励磁电感 (H)
       Lm_uH        // 励磁电感 (μH)
     };
   },
@@ -195,9 +195,8 @@ const LLCCalculator = {
       recommended_C_unit: recommended_C_unit,
       // 电感比
       k: k,
-      // 新增：Lm
-      Lm,
-      Lm_uH
+      // 新增：Lm (统一使用 Lm_uH)
+      Lm_uH: Lm_uH
     };
   },
 
