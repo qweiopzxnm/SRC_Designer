@@ -136,10 +136,15 @@ const LLCCalculator = {
     const Lr_p = Lr_p_uH * 1e-6;
 
     // 计算实际等效电容
-    // LLC 模式：Ceq = Cr_p
-    // SRC 模式：Ceq = (Cr_p * Cr_s_ref) / (Cr_p + Cr_s_ref)
-    const Cr_s_reflected = Cr_s / Tratio2;
-    const Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);
+    // LLC 模式：Ceq = Cr_p（只有原边电容参与谐振）
+    // SRC 模式：Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)（串联等效）
+    let Ceq;
+    if (dsn.topologyMode === 'LLC') {
+      Ceq = Cr_p;  // LLC 模式 Ceq = Cr_p
+    } else {
+      const Cr_s_reflected = Cr_s / Tratio2;  // 副边电容反射到原边
+      Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);  // 串联等效
+    }
 
     // 实际 Q 值
     const Q_actual = Math.sqrt(Lr_p / Ceq) / Racp;

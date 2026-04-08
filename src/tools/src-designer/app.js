@@ -564,8 +564,13 @@ const LLCDesigner = {
     const Ns_cap = parseInt(document.getElementById('act-Ns_cap').textContent);
     const Lr_p_uH = parseFloat(document.getElementById('act-Lr_p').textContent);
     
-    // 验证
-    if (!Np || !Ns || !C_unit_nF || !Np_cap || !Ns_cap || !Lr_p_uH) {
+    // 验证参数（LLC 模式下 Ns_cap 不参与验证）
+    const isLLC = this.topologyMode === 'LLC';
+    if (!Np || !Ns || !C_unit_nF || !Np_cap || !Lr_p_uH) {
+      this.showError('参数必须为正数');
+      return;
+    }
+    if (!isLLC && !Ns_cap) {
       this.showError('参数必须为正数');
       return;
     }
@@ -573,7 +578,8 @@ const LLCDesigner = {
     // 保存修改前的值（用于对比）
     const oldAct = this.currentResults?.act || {};
     const oldCeq = oldAct.Ceq || 0;
-    const oldFr_kHz = (oldAct.fr || 0) / 1000;  // Hz 转 kHz
+    const oldFrLC = (oldAct.frLC || 0) / 1000;  // Hz 转 kHz
+    const oldFrLLC = (oldAct.frLLC || 0) / 1000;  // Hz 转 kHz
     const oldQ = oldAct.Q || 0;
     
     // 计算变压器变比
@@ -591,21 +597,31 @@ const LLCDesigner = {
     const Lm_uH = parseFloat(document.getElementById('Lm').value);
     const Lm = Lm_uH * 1e-6;  // 转换为 H
     
-    // 计算等效电容（副边电容反射到原边后与原边电容串联）
-    const Cr_s_reflected = Cr_s / Tratio2;  // 副边电容反射到原边
-    const Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);  // 串联等效
+    // 计算等效电容
+    // LLC 模式：Ceq = Cr_p（只有原边电容参与谐振）
+    // SRC 模式：Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)（串联等效）
+    let Ceq;
+    if (isLLC) {
+      Ceq = Cr_p;  // LLC 模式 Ceq = Cr_p
+    } else {
+      const Cr_s_reflected = Cr_s / Tratio2;  // 副边电容反射到原边
+      Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);  // 串联等效
+    }
     
-    // 计算偏离度（相对于设计电容 Cr）
+    // 计算偏离度（相对于设计电容 Cr，LLC 模式不计算偏离度）
     const Cr_target = (this.currentResults?.dsn?.Cr || 0);
-    const deviation_pct = ((Ceq - Cr_target) / Cr_target) * 100;
+    const deviation_pct = isLLC ? 0 : ((Ceq - Cr_target) / Cr_target) * 100;
     
     // 计算实际 Q 值和谐振频率
     const Racp = this.currentResults?.dsn?.Racp || 1;
     const Zr = Math.sqrt(Lr_p / Ceq);  // 特征阻抗
     const Q_actual = Zr / Racp;
     
-    // 谐振频率 fr = 1 / (2 * π * √(Lr * Ceq))
-    const fr_actual = 1 / (2 * Math.PI * Math.sqrt(Lr_p * Ceq));  // Hz
+    // LC 谐振频率（串联谐振频率）fr_LC = 1 / (2 * π * √(Lr * Ceq))
+    const frLC_actual = 1 / (2 * Math.PI * Math.sqrt(Lr_p * Ceq));  // Hz
+    
+    // LLC 谐振频率（并联谐振频率）fr_LLC = 1 / (2 * π * √((Lr + Lm) * Ceq))
+    const frLLC_actual = 1 / (2 * Math.PI * Math.sqrt((Lr_p + Lm) * Ceq));  // Hz
     
     // 计算电感比 k
     const k = Lm / Lr_p;
@@ -613,28 +629,40 @@ const LLCDesigner = {
     // 更新 UI 显示
     document.getElementById('act-Tratio').textContent = Tratio.toFixed(4);
     document.getElementById('act-Cr_p').textContent = Cr_p_nF.toFixed(1);
-    document.getElementById('act-Cr_s').textContent = Cr_s_nF.toFixed(1);
+    
+    // LLC 模式下副边电容显示 NaN
+    if (isLLC) {
+      document.getElementById('act-Cr_s').textContent = 'NaN';
+    } else {
+      document.getElementById('act-Cr_s').textContent = Cr_s_nF.toFixed(1);
+    }
+    
     document.getElementById('act-Ceq').textContent = (Ceq * 1e9).toFixed(2);
     document.getElementById('act-Cr_target').textContent = (Cr_target * 1e9).toFixed(2);
     
-    // 偏离度显示
+    // 偏离度显示（LLC 模式显示 N/A）
     const deviationElem = document.getElementById('act-deviation');
-    deviationElem.textContent = deviation_pct > 0 ? '+' + deviation_pct.toFixed(2) : deviation_pct.toFixed(2);
-    if (Math.abs(deviation_pct) < 5) {
-      deviationElem.style.color = '#16a34a';
-    } else if (Math.abs(deviation_pct) < 10) {
-      deviationElem.style.color = '#ca8a04';
+    if (isLLC) {
+      deviationElem.textContent = 'N/A';
+      deviationElem.style.color = '#9ca3af';
     } else {
-      deviationElem.style.color = '#dc2626';
+      deviationElem.textContent = deviation_pct > 0 ? '+' + deviation_pct.toFixed(2) : deviation_pct.toFixed(2);
+      if (Math.abs(deviation_pct) < 5) {
+        deviationElem.style.color = '#16a34a';
+      } else if (Math.abs(deviation_pct) < 10) {
+        deviationElem.style.color = '#ca8a04';
+      } else {
+        deviationElem.style.color = '#dc2626';
+      }
     }
     
     document.getElementById('act-Q').textContent = Q_actual.toFixed(3);
-    document.getElementById('act-fr').textContent = (fr_actual / 1000).toFixed(1);  // kHz
+    document.getElementById('act-fr-lc').textContent = (frLC_actual / 1000).toFixed(1);  // kHz
+    document.getElementById('act-fr-llc').textContent = (frLLC_actual / 1000).toFixed(1);  // kHz
     document.getElementById('act-k').textContent = k.toFixed(3);
     
     // 显示改动前后对比
-    const newFr_kHz = fr_actual / 1000;  // Hz 转 kHz
-    this.showComparePanel(oldCeq, Ceq, oldFr_kHz, newFr_kHz, oldQ, Q_actual);
+    this.showComparePanel(oldCeq, Ceq, oldFrLC, frLC_actual / 1000, oldQ, Q_actual);
     
     // 保存结果
     if (this.currentResults) {
@@ -652,7 +680,8 @@ const LLCDesigner = {
       this.currentResults.act.Ceq = Ceq;
       this.currentResults.act.deviation_pct = deviation_pct;
       this.currentResults.act.Q = Q_actual;
-      this.currentResults.act.fr = fr_actual;  // Hz
+      this.currentResults.act.frLC = frLC_actual;  // Hz
+      this.currentResults.act.frLLC = frLLC_actual;  // Hz
       this.currentResults.act.k = k;
       
       this.saveParams();
