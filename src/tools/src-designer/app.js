@@ -681,7 +681,6 @@ const LLCDesigner = {
     
     // 计算新的 LLC 谐振频率：fr_LLC = 1 / (2 * π * √((Lr + Lm) * Ceq))
     const newLr = parseFloat(document.getElementById('act-Lr_p').textContent) * 1e-6;  // μH 转 H
-    const newCeq = newCeq;  // F
     const newFrLLC = isLLC ? (1 / (2 * Math.PI * Math.sqrt((newLr + newLm * 1e-6) * newCeq))) / 1000 : 0;  // Hz 转 kHz
     
     // 计算变化量
