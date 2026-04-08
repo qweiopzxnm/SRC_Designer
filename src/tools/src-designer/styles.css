@@ -406,12 +406,15 @@ footer {
 
 /* LLC Mode Styles */
 .llc-hide {
-  opacity: 0.4;
-  pointer-events: none;
   position: relative;
 }
 
-.llc-hide::after {
+.llc-mode .llc-hide {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.llc-mode .llc-hide::after {
   content: 'NaN';
   position: absolute;
   top: 50%;
@@ -424,11 +427,6 @@ footer {
   font-size: 12px;
   font-weight: 700;
   z-index: 10;
-}
-
-.llc-mode .llc-hide {
-  display: block;
-  opacity: 0.3;
 }
 
 .llc-mode .llc-hide .value {

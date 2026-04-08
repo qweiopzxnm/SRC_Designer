@@ -44,8 +44,11 @@ const LLCCalculator = {
     const Lm = Lm_uH * 1e-6;
     const k = Lm / Lr;
     
-    // LLC 谐振频率 fr_LLC = 1 / (2 * π * √(Lr * Cr))
-    const frLLC = 1 / (2 * Math.PI * Math.sqrt(Lr * Cr));
+    // LC 谐振频率 fr_LC = 1 / (2 * π * √(Lr * Cr))
+    const frLC = 1 / (2 * Math.PI * Math.sqrt(Lr * Cr));
+    
+    // LLC 谐振频率 fr_LLC = 1 / (2 * π * √((Lr + Lm) * Cr))
+    const frLLC = 1 / (2 * Math.PI * Math.sqrt((Lr + Lm) * Cr));
     
     return {
       Vin_max,
@@ -68,7 +71,8 @@ const LLCCalculator = {
       Vintank,
       Irpk,
       k,           // 电感比
-      frLLC,       // LLC 谐振频率
+      frLC,        // LC 谐振频率 (Hz)
+      frLLC,       // LLC 谐振频率 (Hz)
       Lm,          // 励磁电感 (H)
       Lm_uH        // 励磁电感 (μH)
     };
@@ -152,8 +156,12 @@ const LLCCalculator = {
     // 实际 Q 值
     const Q_actual = Math.sqrt(Lr_p / Ceq) / Racp;
 
-    // 实际谐振频率
-    const fr_actual = 1 / (2 * Math.PI * Math.sqrt(Lr_p * Ceq));
+    // 实际 LC 谐振频率 fr_LC = 1 / (2 * π * √(Lr_p * Ceq))
+    const frLC_actual = 1 / (2 * Math.PI * Math.sqrt(Lr_p * Ceq));
+    
+    // 实际 LLC 谐振频率 fr_LLC = 1 / (2 * π * √((Lr_p + Lm) * Ceq))
+    const Lm = Lm_uH * 1e-6; // 转换为 H
+    const frLLC_actual = 1 / (2 * Math.PI * Math.sqrt((Lr_p + Lm) * Ceq));
 
     // 计算推荐的单颗电容值（使偏离度<5%）
     // 理想情况：N_cap 为整数，即 C_total 能被 C_unit 整除
@@ -161,7 +169,6 @@ const LLCCalculator = {
     const recommended_C_unit = C_total_nF / 5;
     
     // 计算电感比 k = Lm / Lr
-    const Lm = Lm_uH * 1e-6; // 转换为 H
     const k = Lm / Lr_p;
 
     return {
@@ -180,7 +187,9 @@ const LLCCalculator = {
       Lr_p,
       Ceq,
       Q: Q_actual,
-      fr: fr_actual,
+      fr: frLC_actual,        // LC 谐振频率 (Hz)
+      frLC: frLC_actual,      // LC 谐振频率 (Hz)
+      frLLC: frLLC_actual,    // LLC 谐振频率 (Hz)
       // 新增：并联数量和分辨率信息
       C_unit_nF,
       L_step_uH,

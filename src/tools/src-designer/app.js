@@ -196,9 +196,11 @@ const LLCDesigner = {
     document.getElementById('dsn-Vintank').textContent = dsn.Vintank.toFixed(1);
     document.getElementById('dsn-Irpk').textContent = dsn.Irpk.toFixed(2);
     
-    // 新增：电感比 k 和 LLC 谐振频率
+    // 新增：电感比 k、LC 谐振频率、LLC 谐振频率
     document.getElementById('dsn-k').textContent = dsn.k.toFixed(3);
+    const frLC = dsn.frLC ? (dsn.frLC / 1000).toFixed(1) : '-';
     const frLLC = dsn.frLLC ? (dsn.frLLC / 1000).toFixed(1) : '-';
+    document.getElementById('dsn-fr-lc').textContent = frLC;
     document.getElementById('dsn-fr-llc').textContent = frLLC;
 
     // 实际选定参数 (Actpara)
@@ -251,7 +253,8 @@ const LLCDesigner = {
     }
     
     document.getElementById('act-Q').textContent = act.Q.toFixed(3);
-    document.getElementById('act-fr').textContent = (act.fr / 1000).toFixed(1);  // 转换为 kHz
+    document.getElementById('act-fr-lc').textContent = (act.frLC / 1000).toFixed(1);  // LC 谐振频率
+    document.getElementById('act-fr-llc').textContent = (act.frLLC / 1000).toFixed(1);  // LLC 谐振频率
     document.getElementById('act-k').textContent = act.k.toFixed(3);
     
     // 更新推荐电容值提示
@@ -660,7 +663,7 @@ const LLCDesigner = {
   /**
    * 显示改动前后对比面板
    */
-  showComparePanel(oldCeq, newCeq, oldFr, newFr, oldQ, newQ) {
+  showComparePanel(oldCeq, newCeq, oldFrLC, newFrLC, oldQ, newQ) {
     const panel = document.getElementById('act-compare-panel');
     if (!panel) return;
     
@@ -675,15 +678,19 @@ const LLCDesigner = {
     // 获取 LLC 谐振频率
     const oldFrLLC = this.currentResults?.dsn?.frLLC ? this.currentResults.dsn.frLLC / 1000 : 0;  // Hz 转 kHz
     const isLLC = this.topologyMode === 'LLC';
-    const newFrLLC = isLLC ? (1 / (2 * Math.PI * Math.sqrt((newFr * 1000) * (newCeq * 1e-9)))) / 1000 : 0;
+    
+    // 计算新的 LLC 谐振频率：fr_LLC = 1 / (2 * π * √((Lr + Lm) * Ceq))
+    const newLr = parseFloat(document.getElementById('act-Lr_p').textContent) * 1e-6;  // μH 转 H
+    const newCeq = newCeq;  // F
+    const newFrLLC = isLLC ? (1 / (2 * Math.PI * Math.sqrt((newLr + newLm * 1e-6) * newCeq))) / 1000 : 0;  // Hz 转 kHz
     
     // 计算变化量
     const ceqDelta = oldCeq > 0 ? ((newCeq - oldCeq) / oldCeq) * 100 : 0;
-    const frDelta = oldFr > 0 ? ((newFr - oldFr) / oldFr) * 100 : 0;
+    const frLCDelta = oldFrLC > 0 ? ((newFrLC - oldFrLC) / oldFrLC) * 100 : 0;
+    const frLLCDelta = oldFrLLC > 0 ? ((newFrLLC - oldFrLLC) / oldFrLLC) * 100 : 0;
     const qDelta = oldQ > 0 ? ((newQ - oldQ) / oldQ) * 100 : 0;
     const tratioDelta = oldTratio > 0 ? ((newTratio - oldTratio) / oldTratio) * 100 : 0;
     const lmDelta = oldLm > 0 ? ((newLm - oldLm) / oldLm) * 100 : 0;
-    const frLLCDelta = oldFrLLC > 0 ? ((newFrLLC - oldFrLLC) / oldFrLLC) * 100 : 0;
     
     // 格式化 delta 显示
     const formatDelta = (delta) => {
@@ -701,10 +708,10 @@ const LLCDesigner = {
     document.getElementById('compare-ceq-after').textContent = (newCeq * 1e9).toFixed(2) + ' nF';
     document.getElementById('compare-ceq-delta').innerHTML = formatDelta(ceqDelta);
     
-    // 谐振频率 (oldFr 和 newFr 都是 kHz)
-    document.getElementById('compare-fr-before').textContent = oldFr.toFixed(1) + ' kHz';
-    document.getElementById('compare-fr-after').textContent = newFr.toFixed(1) + ' kHz';
-    document.getElementById('compare-fr-delta').innerHTML = formatDelta(frDelta);
+    // LC 谐振频率
+    document.getElementById('compare-fr-lc-before').textContent = oldFrLC.toFixed(1) + ' kHz';
+    document.getElementById('compare-fr-lc-after').textContent = newFrLC.toFixed(1) + ' kHz';
+    document.getElementById('compare-fr-lc-delta').innerHTML = formatDelta(frLCDelta);
     
     // Q 值
     document.getElementById('compare-q-before').textContent = oldQ.toFixed(3);

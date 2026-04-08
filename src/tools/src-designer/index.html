@@ -232,6 +232,14 @@
             </div>
             <div class="result-item">
               <span class="label">
+                LC 谐振频率 fr_LC
+                <span class="label-en">LC Resonant Frequency</span>
+              </span>
+              <span class="value" id="dsn-fr-lc">-</span>
+              <span class="unit">kHz</span>
+            </div>
+            <div class="result-item">
+              <span class="label">
                 LLC 谐振频率 fr_LLC
                 <span class="label-en">LLC Resonant Frequency</span>
               </span>
@@ -343,10 +351,18 @@
             </div>
             <div class="result-item">
               <span class="label">
-                实际谐振频率
-                <span class="label-en">Actual Resonant Frequency</span>
+                LC 谐振频率 fr_LC
+                <span class="label-en">LC Resonant Frequency</span>
               </span>
-              <span class="value" id="act-fr">-</span>
+              <span class="value" id="act-fr-lc">-</span>
+              <span class="unit">kHz</span>
+            </div>
+            <div class="result-item">
+              <span class="label">
+                LLC 谐振频率 fr_LLC
+                <span class="label-en">LLC Resonant Frequency</span>
+              </span>
+              <span class="value" id="act-fr-llc">-</span>
               <span class="unit">kHz</span>
             </div>
             <div class="result-item">
@@ -395,18 +411,35 @@
               
               <div style="background: white; padding: 12px; border-radius: 6px;">
                 <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
-                  谐振频率 fr | Resonant Frequency
+                  LC 谐振频率 fr_LC | LC Resonant Frequency
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
-                  <span id="compare-fr-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                  <span id="compare-fr-lc-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                   <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
-                  <span id="compare-fr-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                  <span id="compare-fr-lc-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
                 </div>
                 <div style="text-align: right; margin-top: 4px;">
-                  <span id="compare-fr-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                  <span id="compare-fr-lc-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  LLC 谐振频率 fr_LLC | LLC Resonant Frequency
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-fr-llc-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-fr-llc-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-fr-llc-delta" style="font-size: 11px; font-weight: 600;">-</span>
                 </div>
               </div>
               
