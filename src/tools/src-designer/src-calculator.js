@@ -10,7 +10,7 @@ const LLCCalculator = {
    * @returns {Object} Dsnpara 结构体
    */
   calculateDsnpara(params) {
-    const { Vin_max, Vo_nom, Po, fr, Np, Ns, Q, fs_ratio, Lm_uH } = params;
+    const { Vin_max, Vo_nom, Po, fr, Np, Ns, Q, fs_ratio, Lm_uH, topologyMode } = params;
 
     // 基本参数
     const fr_Hz = fr * 1000; // 转 Hz
@@ -18,17 +18,22 @@ const LLCCalculator = {
     const Tratio = Np / Ns; // 匝比
     const Gain = M * Tratio; // 总增益
 
-    // 最小开关频率
-    const fs_min = fs_ratio * fr_Hz;
-
-    // 等效交流电阻
+    // LC 谐振频率 fr_LC = 1 / (2 * π * √(Lr * Cr)) - 先计算 Lr 和 Cr
     const Rac = (8 / Math.PI ** 2) * (Vo_nom ** 2) / Po;
-    const Racp = Rac * (Tratio ** 2); // 反射到原边
-
-    // 特征阻抗和谐振元件
+    const Racp = Rac * (Tratio ** 2);
     const Zr = Racp * Q;
     const Lr = Zr / (2 * Math.PI * fr_Hz);
     const Cr = 1 / (Zr * 2 * Math.PI * fr_Hz);
+    
+    const frLC = 1 / (2 * Math.PI * Math.sqrt(Lr * Cr));
+    
+    // LLC 谐振频率 fr_LLC = 1 / (2 * π * √((Lr + Lm) * Cr))
+    const Lm = Lm_uH * 1e-6;
+    const frLLC = 1 / (2 * Math.PI * Math.sqrt((Lr + Lm) * Cr));
+    
+    // 最小开关频率：SRC 用 fr_LC，LLC 用 fr_LLC
+    const baseFreq = (topologyMode === 'LLC') ? frLLC : frLC;
+    const fs_min = fs_ratio * baseFreq;
 
     // 最小开关频率下的等效阻抗
     const Zeq = Math.sqrt(
@@ -41,14 +46,7 @@ const LLCCalculator = {
     const Irpk = Vintank / Zeq;
 
     // 电感比 k = Lm / Lr
-    const Lm = Lm_uH * 1e-6;
     const k = Lm / Lr;
-    
-    // LC 谐振频率 fr_LC = 1 / (2 * π * √(Lr * Cr))
-    const frLC = 1 / (2 * Math.PI * Math.sqrt(Lr * Cr));
-    
-    // LLC 谐振频率 fr_LLC = 1 / (2 * π * √((Lr + Lm) * Cr))
-    const frLLC = 1 / (2 * Math.PI * Math.sqrt((Lr + Lm) * Cr));
     
     return {
       Vin_max,
@@ -97,20 +95,11 @@ const LLCCalculator = {
     // 目标电容值 (nF)
     const Cr_target_nF = dsn.Cr * 1e9;
     
-    // === 关键修正：反向计算需要的 Cr_p 和 Cr_s ===
-    // LLC 等效电容公式：Ceq = (Cr_p * Cr_s_ref) / (Cr_p + Cr_s_ref)
-    // 其中 Cr_s_ref = Cr_s / Tratio²
-    // 
-    // 假设原副边使用相同数量的电容并联：Cr_p = Cr_s = C_total
-    // 则：Ceq = C_total / (Tratio² + 1)
-    // 
-    // 要让 Ceq = Cr_target，则：
-    // C_total = Cr_target * (Tratio² + 1)
-    
-    const C_total_nF = Cr_target_nF * (Tratio2 + 1);
+    // LLC 模式：Ceq = Cr_p，不需要计算副边电容
+    // SRC 模式：Ceq = (Cr_p * Cr_s_ref) / (Cr_p + Cr_s_ref)
     
     // 计算理论并联数量（可能不是整数）
-    const N_cap_exact = C_total_nF / C_unit_nF;
+    const N_cap_exact = Cr_target_nF / C_unit_nF;
     
     // 尝试向下取整和向上取整，选偏离最小的
     const N_floor = Math.floor(N_cap_exact);
@@ -120,11 +109,8 @@ const LLCCalculator = {
     const C_floor = C_unit_nF * N_floor;
     const C_ceil = C_unit_nF * N_ceil;
     
-    const Ceq_floor = C_floor / (Tratio2 + 1);
-    const Ceq_ceil = C_ceil / (Tratio2 + 1);
-    
-    const dev_floor = Math.abs((Ceq_floor - Cr_target_nF) / Cr_target_nF);
-    const dev_ceil = Math.abs((Ceq_ceil - Cr_target_nF) / Cr_target_nF);
+    const dev_floor = Math.abs((C_floor - Cr_target_nF) / Cr_target_nF);
+    const dev_ceil = Math.abs((C_ceil - Cr_target_nF) / Cr_target_nF);
     
     // 选择偏离度更小的方案
     let Np_cap, Ns_cap, Cr_p_nF, Cr_s_nF;
@@ -149,7 +135,9 @@ const LLCCalculator = {
     const Cr_s = Cr_s_nF * 1e-9;
     const Lr_p = Lr_p_uH * 1e-6;
 
-    // 计算实际等效电容 (考虑匝比)
+    // 计算实际等效电容
+    // LLC 模式：Ceq = Cr_p
+    // SRC 模式：Ceq = (Cr_p * Cr_s_ref) / (Cr_p + Cr_s_ref)
     const Cr_s_reflected = Cr_s / Tratio2;
     const Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);
 

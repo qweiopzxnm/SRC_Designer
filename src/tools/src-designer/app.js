@@ -132,7 +132,8 @@ const LLCDesigner = {
       fs_ratio,
       C_unit_nF,
       L_step_uH,
-      Lm_uH
+      Lm_uH,
+      topologyMode: this.topologyMode  // 传递拓扑模式
     };
   },
 
