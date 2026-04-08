@@ -376,6 +376,19 @@ const LLCDesigner = {
       localStorage.setItem('llc-designer-results', JSON.stringify(results));
       // 同时保存到 sessionStorage 保持兼容
       sessionStorage.setItem('llc-designer-results', JSON.stringify(results));
+      
+      // 调试日志：确认保存的参数
+      console.log('💾 设计页保存参数 | Design page saved params:', {
+        Cr_p: (act.Cr_p * 1e9).toFixed(2) + ' nF',
+        Cr_s: (act.Cr_s * 1e9).toFixed(2) + ' nF',
+        Lr: (act.Lr_p * 1e6).toFixed(2) + ' μH',
+        Lm: act.Lm_uH.toFixed(2) + ' μH',
+        Np: act.Np || dsn.Np,
+        Ns: act.Ns || dsn.Ns,
+        Tratio: (act.Np || dsn.Np) / (act.Ns || dsn.Ns)
+      });
+    } else {
+      console.warn('⚠️ 没有计算结果可保存 | No calculation results to save');
     }
   },
 
@@ -571,6 +584,8 @@ const LLCDesigner = {
       this.currentResults.act.Cr_s = Cr_s;
       this.currentResults.act.Lr_p = Lr_p;
       this.currentResults.act.Lr_p_uH = Lr_p_uH;
+      this.currentResults.act.Lm = Lm;
+      this.currentResults.act.Lm_uH = Lm_uH;
       this.currentResults.act.Ceq = Ceq;
       this.currentResults.act.deviation_pct = deviation_pct;
       this.currentResults.act.Q = Q_actual;

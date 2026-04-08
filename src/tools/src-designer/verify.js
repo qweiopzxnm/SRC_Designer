@@ -346,15 +346,31 @@ const LLCVerifier = {
     try {
       // 优先从 localStorage 读取（支持跨标签页），其次从 sessionStorage 读取
       let savedResults = localStorage.getItem('llc-designer-results');
+      const source = savedResults ? 'localStorage' : 'sessionStorage';
       if (!savedResults) {
         savedResults = sessionStorage.getItem('llc-designer-results');
       }
       
+      // 调试日志：读取原始数据
+      console.log('🔄 验证页尝试同步参数 | Verifier trying to sync params:', {
+        hasLocalStorage: !!localStorage.getItem('llc-designer-results'),
+        hasSessionStorage: !!sessionStorage.getItem('llc-designer-results'),
+        dataSource: source || 'none'
+      });
+      
       if (savedResults) {
         const results = JSON.parse(savedResults);
         
+        // 调试日志：显示读取到的参数
+        console.log('📖 验证页读取到的参数 | Verifier read params:', results);
+        
         // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
         if (!results.Cr_p || !results.Lr || !results.Lm) {
+          console.warn('⚠️ 参数无效 | Invalid params:', {
+            Cr_p: results.Cr_p,
+            Lr: results.Lr,
+            Lm: results.Lm
+          });
           // 设计页未计算，全部归 0
           this.frozenParams = {
             Cr_p: null,
@@ -367,20 +383,31 @@ const LLCVerifier = {
             Ns_cap: null
           };
           this.updateFrozenDisplay();
-          this.showStatus('⚠️ 设计页未计算，参数已归零 | Design page not calculated, parameters reset', 'warning');
+          this.showStatus('⚠️ 设计页未计算，参数已归零 | Design page not calculated, parameters reset\n\n💡 请先在设计页 (index.html) 输入参数并点击"计算"，然后再点击此按钮同步参数。\n💡 Please enter parameters in Design Page (index.html) and click "Calculate" first, then click this button to sync.', 'warning');
           return;
         }
         
         const newParams = {
-          Cr_p: results.Cr_p * 1e9,
-          Cr_s: results.Cr_s * 1e9,
-          Lr: results.Lr * 1e6,
-          Lm: results.Lm_uH,
+          Cr_p: results.Cr_p * 1e9,  // F → nF
+          Cr_s: results.Cr_s * 1e9,  // F → nF
+          Lr: results.Lr * 1e6,      // H → μH
+          Lm: results.Lm_uH,         // 已经是 μH
           Np: results.Np,
           Ns: results.Ns,
           Np_cap: results.Np_cap || 1,
           Ns_cap: results.Ns_cap || 1
         };
+        
+        // 调试日志：显示转换后的参数
+        console.log('✅ 参数转换完成 | Params converted:', {
+          Cr_p: newParams.Cr_p.toFixed(2) + ' nF',
+          Cr_s: newParams.Cr_s.toFixed(2) + ' nF',
+          Lr: newParams.Lr.toFixed(2) + ' μH',
+          Lm: newParams.Lm.toFixed(2) + ' μH',
+          Np: newParams.Np,
+          Ns: newParams.Ns,
+          Tratio: (newParams.Np / newParams.Ns).toFixed(4)
+        });
         
         if (newParams.Lm && typeof newParams.Lm === 'number' && isFinite(newParams.Lm)) {
           // 检查参数是否发生变化
@@ -397,6 +424,8 @@ const LLCVerifier = {
             this.showStatus('🔓 参数已解锁并同步 | Parameters unlocked and synced', 'success');
           }
           return;
+        } else {
+          console.error('❌ Lm 参数无效 | Lm param invalid:', newParams.Lm);
         }
       } else {
         // 没有保存的结果，全部归 0
