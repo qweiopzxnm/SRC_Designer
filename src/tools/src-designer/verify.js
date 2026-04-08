@@ -1434,32 +1434,48 @@ const LLCVerifier = {
   },
 
   /**
-   * 检查仿真参数是否有空值
+   * 递归检查对象中所有 null/undefined 值
    */
-  checkEmptyParams(simulationData) {
-    const emptyFields = [];
+  checkNullValues(obj, path = '', emptyFields = []) {
+    if (obj === null || obj === undefined) {
+      emptyFields.push(path || 'root');
+      return emptyFields;
+    }
     
-    // 检查冻结参数（使用 === null || === undefined 检查，0 是有效值）
-    const fp = simulationData.frozenParams;
-    if (fp.Cr_p === null || fp.Cr_p === undefined) emptyFields.push('Cr_p (原边谐振电容)');
-    if (fp.Cr_s === null || fp.Cr_s === undefined) emptyFields.push('Cr_s (副边谐振电容)');
-    if (fp.Lr === null || fp.Lr === undefined) emptyFields.push('Lr (谐振电感)');
-    if (fp.Lm === null || fp.Lm === undefined) emptyFields.push('Lm (励磁电感)');
-    if (fp.Np === null || fp.Np === undefined) emptyFields.push('Np (原边匝数)');
-    if (fp.Ns === null || fp.Ns === undefined) emptyFields.push('Ns (副边匝数)');
+    if (typeof obj !== 'object') {
+      return emptyFields;
+    }
     
-    // 检查工况
-    if (!simulationData.conditions || simulationData.conditions.length === 0) {
-      emptyFields.push('conditions (仿真工况)');
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) {
+        emptyFields.push(path + ' (empty array)');
+      } else {
+        obj.forEach((item, index) => {
+          this.checkNullValues(item, `${path}[${index}]`, emptyFields);
+        });
+      }
     } else {
-      simulationData.conditions.forEach((cond, idx) => {
-        if (cond.Vin === null || cond.Vin === undefined) emptyFields.push(`工况${idx+1}.Vin`);
-        if (cond.Vref === null || cond.Vref === undefined) emptyFields.push(`工况${idx+1}.Vref`);
-        if (cond.Po === null || cond.Po === undefined) emptyFields.push(`工况${idx+1}.Po`);
+      Object.keys(obj).forEach(key => {
+        const value = obj[key];
+        const newPath = path ? `${path}.${key}` : key;
+        
+        if (value === null || value === undefined) {
+          emptyFields.push(newPath);
+        } else if (typeof value === 'object') {
+          this.checkNullValues(value, newPath, emptyFields);
+        }
       });
     }
     
     return emptyFields;
+  },
+  
+  /**
+   * 检查仿真参数是否有空值（检查所有结构体参数）
+   */
+  checkEmptyParams(simulationData) {
+    const emptyFields = [];
+    return this.checkNullValues(simulationData, '', emptyFields);
   },
   
   /**
