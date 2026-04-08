@@ -152,9 +152,9 @@ const LLCCalculator = {
     const frLLC_actual = 1 / (2 * Math.PI * Math.sqrt((Lr_p + Lm) * Ceq));
 
     // 计算推荐的单颗电容值（使偏离度<5%）
-    // 理想情况：N_cap 为整数，即 C_total 能被 C_unit 整除
-    // 推荐 C_unit = C_total / 5 (约 5 颗并联，容差范围内)
-    const recommended_C_unit = C_total_nF / 5;
+    // 理想情况：N_cap 为整数，即 Cr_p 能被 C_unit 整除
+    // 推荐 C_unit = Cr_p / 5 (约 5 颗并联，容差范围内)
+    const recommended_C_unit = Cr_p_nF / 5;
     
     // 计算电感比 k = Lm / Lr
     const k = Lm / Lr_p;
