@@ -86,7 +86,7 @@ const LLCCalculator = {
    * @param {number} Lm_uH - 励磁电感 (μH)
    * @returns {Object} Actpara 结构体
    */
-  calculateActpara(dsn, C_unit_nF, L_step_uH, Lm_uH) {
+  calculateActpara(dsn, C_unit_nF, L_step_uH, Lm_uH, topologyMode = 'SRC') {
     const { Vin_max, Vo_nom, Po, Np, Ns, Racp } = dsn;
 
     const Tratio = Np / Ns;
@@ -139,7 +139,7 @@ const LLCCalculator = {
     // LLC 模式：Ceq = Cr_p（只有原边电容参与谐振）
     // SRC 模式：Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)（串联等效）
     let Ceq;
-    if (dsn.topologyMode === 'LLC') {
+    if (topologyMode === 'LLC') {
       Ceq = Cr_p;  // LLC 模式 Ceq = Cr_p
     } else {
       const Cr_s_reflected = Cr_s / Tratio2;  // 副边电容反射到原边

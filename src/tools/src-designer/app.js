@@ -149,7 +149,7 @@ const LLCDesigner = {
       const dsn = LLCCalculator.calculateDsnpara(input);
 
       // 2. 计算实际选定参数 (Actpara) - 基于用户指定电容容量、电感分辨率和 Lm
-      const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH);
+      const act = LLCCalculator.calculateActpara(dsn, input.C_unit_nF, input.L_step_uH, input.Lm_uH, this.topologyMode);
 
       // 保存结果
       this.currentResults = {
@@ -705,8 +705,8 @@ const LLCDesigner = {
     const oldLm = this.currentResults?.act?.Lm_uH || this.currentResults?.dsn?.Lm_uH || 0;
     const newLm = parseFloat(document.getElementById('Lm').value);
     
-    // 获取 LLC 谐振频率
-    const oldFrLLC = this.currentResults?.dsn?.frLLC ? this.currentResults.dsn.frLLC / 1000 : 0;  // Hz 转 kHz
+    // 获取 LLC 谐振频率（从 act 获取实际值）
+    const oldFrLLC = this.currentResults?.act?.frLLC ? this.currentResults.act.frLLC / 1000 : 0;  // Hz 转 kHz
     const isLLC = this.topologyMode === 'LLC';
     
     // 计算新的 LLC 谐振频率：fr_LLC = 1 / (2 * π * √((Lr + Lm) * Ceq))
