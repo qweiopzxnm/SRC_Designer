@@ -1434,17 +1434,41 @@ const LLCVerifier = {
   },
 
   /**
+   * 检查仿真参数是否有空值
+   */
+  checkEmptyParams(simulationData) {
+    const emptyFields = [];
+    
+    // 检查冻结参数
+    const fp = simulationData.frozenParams;
+    if (!fp.Cr_p) emptyFields.push('Cr_p (原边谐振电容)');
+    if (!fp.Cr_s) emptyFields.push('Cr_s (副边谐振电容)');
+    if (!fp.Lr) emptyFields.push('Lr (谐振电感)');
+    if (!fp.Lm) emptyFields.push('Lm (励磁电感)');
+    if (!fp.Np) emptyFields.push('Np (原边匝数)');
+    if (!fp.Ns) emptyFields.push('Ns (副边匝数)');
+    
+    // 检查工况
+    if (!simulationData.conditions || simulationData.conditions.length === 0) {
+      emptyFields.push('conditions (仿真工况)');
+    } else {
+      simulationData.conditions.forEach((cond, idx) => {
+        if (!cond.Vin) emptyFields.push(`工况${idx+1}.Vin`);
+        if (!cond.Vref) emptyFields.push(`工况${idx+1}.Vref`);
+        if (!cond.Po) emptyFields.push(`工况${idx+1}.Po`);
+      });
+    }
+    
+    return emptyFields;
+  },
+  
+  /**
    * 建立仿真参数（生成 verify_input.json）
    */
   buildParams() {
     if (!this.collectConditions()) {
       this.showStatus('⚠️ 请至少添加一个有效工况 | Please add at least one valid condition', 'error');
       return;
-    }
-    
-    if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
-      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"更新冻结参数"从设计页同步。\n\n⚠️ Frozen parameters may not be set. Continue?\n\nRecommended to click "Update Frozen Parameters" first.');
-      if (!confirmed) return;
     }
     
     // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置、热模型变量、PLECS 路径和裕量）
@@ -1479,6 +1503,16 @@ const LLCVerifier = {
       timestamp: new Date().toISOString()
     };
     
+    // 检查是否有空值
+    const emptyFields = this.checkEmptyParams(simulationData);
+    if (emptyFields.length > 0) {
+      const errorMsg = '⚠️ 发现以下参数为空值，请先补充完整：\n\n' + 
+                       '⚠️ The following parameters are empty, please fill them in first:\n\n' +
+                       emptyFields.map(f => '  - ' + f).join('\n');
+      this.showStatus(errorMsg, 'error');
+      return false;
+    }
+    
     const jsonStr = JSON.stringify(simulationData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1491,6 +1525,7 @@ const LLCVerifier = {
     URL.revokeObjectURL(url);
     
     this.showStatus('✅ 仿真参数已建立 | Simulation parameters built (verify_input.json)', 'success');
+    return true;
   },
 
   /**
@@ -1502,44 +1537,31 @@ const LLCVerifier = {
       return;
     }
     
-    if (!this.frozenParams.Cr_p || !this.frozenParams.Lr || !this.frozenParams.Lm) {
-      const confirmed = confirm('⚠️ 冻结参数可能未设置，是否继续？\n\n建议先点击"建立仿真参数"生成 verify_input.json。\n\n⚠️ Frozen parameters may not be set. Continue?\n\nRecommended to click "Build Simulation Parameters" first.');
-      if (!confirmed) return;
-    }
-    
-    // 先建立参数
-    this.buildParams();
-    
     // 提示用户运行 bat
-    setTimeout(() => {
-      const confirmed = confirm(
-        '✅ verify_input.json 已生成\n\n' +
-        '是否现在运行 verify-sim.bat 进行仿真？\n\n' +
-        '✅ verify_input.json generated\n\n' +
-        'Run verify-sim.bat now to start simulation?'
-      );
+    const confirmed = confirm(
+      '🚀 仿真说明 | Simulation Instructions\n\n' +
+      '请确认已点击"📝 建立仿真参数"生成 verify_input.json。\n' +
+      'Please confirm you have clicked "Build Simulation Parameters" to generate verify_input.json.\n\n' +
+      '是否现在运行 verify-sim.bat 进行仿真？\n' +
+      'Run verify-sim.bat now to start simulation?'
+    );
+    
+    if (confirmed) {
+      this.showStatus('⏳ 正在启动仿真... | Starting simulation...', 'warning');
       
-      if (confirmed) {
-        // 使用 exec 运行 bat 脚本
-        const workdir = '/home/admin/.openclaw/workspace/src/tools/src-designer';
-        const command = 'cd ' + workdir + ' && bash verify-sim.bat';
-        
-        this.showStatus('⏳ 正在启动仿真... | Starting simulation...', 'warning');
-        
-        // 注意：浏览器环境无法直接执行系统命令，需要用户手动运行
-        // 这里提供替代方案：打开文件管理器或提供明确指引
-        alert(
-          '🚀 仿真说明 | Simulation Instructions\n\n' +
-          '由于浏览器安全限制，无法直接执行批处理文件。\n' +
-          'Due to browser security restrictions, cannot execute batch file directly.\n\n' +
-          '请手动执行以下命令 | Please run manually:\n' +
-          'cd /home/admin/.openclaw/workspace/src/tools/src-designer\n' +
-          'bash verify-sim.bat\n\n' +
-          '或在文件管理器中双击 verify-sim.bat\n' +
-          'Or double-click verify-sim.bat in file manager.'
-        );
-      }
-    }, 500);
+      // 注意：浏览器环境无法直接执行系统命令，需要用户手动运行
+      // 这里提供替代方案：打开文件管理器或提供明确指引
+      alert(
+        '🚀 仿真说明 | Simulation Instructions\n\n' +
+        '由于浏览器安全限制，无法直接执行批处理文件。\n' +
+        'Due to browser security restrictions, cannot execute batch file directly.\n\n' +
+        '请手动执行以下命令 | Please run manually:\n' +
+        'cd /home/admin/.openclaw/workspace/src/tools/src-designer\n' +
+        'bash verify-sim.bat\n\n' +
+        '或在文件管理器中双击 verify-sim.bat\n' +
+        'Or double-click verify-sim.bat in file manager.'
+      );
+    }
   },
 
   /**
