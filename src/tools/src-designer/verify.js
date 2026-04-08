@@ -378,11 +378,10 @@ const LLCVerifier = {
   syncFrozenParams(force = false) {
     console.log('🔵 syncFrozenParams 被调用 | called, force=', force, 'paramsLocked=', this.paramsLocked);
     
-    // 如果参数已锁定且不是强制同步，则跳过
-    if (this.paramsLocked && !force) {
-      console.log('⚠️ 参数已锁定，跳过 | Parameters locked, skipping');
-      this.showStatus('🔒 参数已锁定，跳过自动同步 | Parameters locked, skipping auto-sync', 'warning');
-      return;
+    // 如果参数已锁定，自动解锁并同步
+    if (this.paramsLocked) {
+      console.log('🔓 参数已锁定，自动解锁后同步 | Parameters locked, auto-unlocking then syncing');
+      this.unlockParams();
     }
     
     try {
@@ -648,6 +647,24 @@ const LLCVerifier = {
     }
     
     this.paramsLocked = savedLocked === 'true';
+    
+    // 根据锁定状态更新 UI
+    if (this.paramsLocked) {
+      const btnSync = document.getElementById('btn-sync-frozen');
+      const btnLock = document.getElementById('btn-lock-params');
+      if (btnSync) btnSync.disabled = true;
+      if (btnLock) btnLock.textContent = '🔓 解锁参数 | Unlock Parameters';
+      this.disableFrozenParamsEdit();
+      console.log('🔒 加载锁定状态 | Loaded locked state');
+    } else {
+      const btnSync = document.getElementById('btn-sync-frozen');
+      const btnLock = document.getElementById('btn-lock-params');
+      if (btnSync) btnSync.disabled = false;
+      if (btnLock) btnLock.textContent = '🔒 锁定参数 | Lock Parameters';
+      this.enableFrozenParamsEdit();
+      console.log('🔓 加载解锁状态 | Loaded unlocked state');
+    }
+    
     this.updateFrozenDisplay();
   },
 
