@@ -426,6 +426,7 @@ const LLCDesigner = {
     if (this.currentResults) {
       const { dsn, act } = this.currentResults;
       const results = {
+        topologyMode: this.topologyMode,  // 保存拓扑模式
         Cr_p: act.Cr_p,
         Cr_s: act.Cr_s,
         Lr: act.Lr_p,

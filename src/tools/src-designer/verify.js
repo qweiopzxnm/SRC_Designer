@@ -5,6 +5,9 @@
  */
 
 const LLCVerifier = {
+  // 拓扑模式：'SRC' 或 'LLC'
+  topologyMode: 'SRC',
+  
   // 冻结的谐振参数
   frozenParams: {
     Cr_p: null,
@@ -374,6 +377,9 @@ const LLCVerifier = {
       if (savedResults) {
         const results = JSON.parse(savedResults);
         
+        // 同步拓扑模式
+        this.topologyMode = results.topologyMode || 'SRC';
+        
         // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
         if (!results.Cr_p || !results.Lr || !results.Lm) {
           this.frozenParams = {
@@ -443,14 +449,24 @@ const LLCVerifier = {
    */
   updateFrozenDisplay() {
     const fp = this.frozenParams;
+    const isLLC = this.topologyMode === 'LLC';
+    
     document.getElementById('frozen-Crp').textContent = fp.Cr_p ? fp.Cr_p.toFixed(1) : '-';
-    document.getElementById('frozen-Crs').textContent = fp.Cr_s ? fp.Cr_s.toFixed(1) : '-';
+    
+    // LLC 模式下副边电容显示 NaN
+    if (isLLC) {
+      document.getElementById('frozen-Crs').textContent = 'NaN';
+      document.getElementById('frozen-Ns-cap').textContent = 'NaN';
+    } else {
+      document.getElementById('frozen-Crs').textContent = fp.Cr_s ? fp.Cr_s.toFixed(1) : '-';
+      document.getElementById('frozen-Ns-cap').textContent = fp.Ns_cap || '-';
+    }
+    
     document.getElementById('frozen-Lr').textContent = fp.Lr ? fp.Lr.toFixed(1) : '-';
     document.getElementById('frozen-Lm').textContent = fp.Lm ? fp.Lm.toFixed(1) : '-';
     document.getElementById('frozen-Np').textContent = fp.Np || '-';
     document.getElementById('frozen-Ns').textContent = fp.Ns || '-';
     document.getElementById('frozen-Np-cap').textContent = fp.Np_cap || '-';
-    document.getElementById('frozen-Ns-cap').textContent = fp.Ns_cap || '-';
   },
 
   /**
