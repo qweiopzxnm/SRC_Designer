@@ -9,8 +9,17 @@
 <body>
   <div class="container">
     <header>
-      <h1>⚡ SRC 设计工具</h1>
-      <p class="subtitle">SRC 谐振变换器自动设计与优化 | SRC Resonant Converter Auto-Design & Optimization</p>
+      <h1>⚡ SRC/LLC 设计工具</h1>
+      <p class="subtitle">SRC/LLC 谐振变换器自动设计与优化 | SRC/LLC Resonant Converter Auto-Design & Optimization</p>
+      <div class="mode-switch" style="margin-top: 15px;">
+        <label style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 8px;">
+          <span style="font-size: 14px; font-weight: 600;">🔌 拓扑模式 | Topology:</span>
+          <select id="topology-mode" onchange="LLCDesigner.toggleTopology()" style="padding: 6px 12px; border-radius: 6px; border: 2px solid #4f46e5; background: white; color: #1f2937; font-size: 14px; font-weight: 600; cursor: pointer;">
+            <option value="SRC">SRC (串联谐振)</option>
+            <option value="LLC">LLC (串并联谐振)</option>
+          </select>
+        </label>
+      </div>
     </header>
 
     <main>
@@ -214,6 +223,21 @@
               <span class="value" id="dsn-Irpk">-</span>
               <span class="unit">A</span>
             </div>
+            <div class="result-item">
+              <span class="label">
+                电感比 k (Lm/Lr)
+                <span class="label-en">Inductance Ratio (k)</span>
+              </span>
+              <span class="value" id="dsn-k">-</span>
+            </div>
+            <div class="result-item">
+              <span class="label">
+                LLC 谐振频率 fr_LLC
+                <span class="label-en">LLC Resonant Frequency</span>
+              </span>
+              <span class="value" id="dsn-fr-llc">-</span>
+              <span class="unit">kHz</span>
+            </div>
           </div>
         </div>
 
@@ -253,7 +277,7 @@
               <span class="unit">nF</span>
               <span class="unit" style="font-size: 10px; color: #9ca3af;">= C_unit × Np_cap</span>
             </div>
-            <div class="result-item">
+            <div class="result-item llc-hide">
               <span class="label">
                 副边电容并联数量
                 <span class="label-en">Secondary Caps in Parallel</span>
@@ -261,7 +285,7 @@
               <span class="value" id="act-Ns_cap">-</span>
               <span class="unit">颗</span>
             </div>
-            <div class="result-item">
+            <div class="result-item llc-hide">
               <span class="label">
                 副边谐振电容 Cr_s
                 <span class="label-en">Secondary Resonant Capacitance</span>
@@ -278,7 +302,15 @@
               <span class="value" id="act-Lr_p">-</span>
               <span class="unit">μH</span>
             </div>
-            <div class="result-item">
+            <div class="result-item" id="act-Lm-item">
+              <span class="label">
+                励磁电感 Lm
+                <span class="label-en">Magnetizing Inductance</span>
+              </span>
+              <span class="value" id="act-Lm">-</span>
+              <span class="unit">μH</span>
+            </div>
+            <div class="result-item" id="act-Ceq-item">
               <span class="label">
                 等效电容 Ceq
                 <span class="label-en">Equivalent Capacitance</span>
@@ -392,6 +424,40 @@
                 </div>
                 <div style="text-align: right; margin-top: 4px;">
                   <span id="compare-q-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  励磁电感 Lm | Magnetizing Inductance
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-lm-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-lm-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-lm-delta" style="font-size: 11px; font-weight: 600;">-</span>
+                </div>
+              </div>
+              
+              <div style="background: white; padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                  LLC 谐振频率 fr_LLC | LLC Resonant Frequency
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改前 | Before:</span>
+                  <span id="compare-fr-llc-before" style="font-size: 13px; font-weight: 600; color: #6b7280;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; color: #9ca3af;">修改后 | After:</span>
+                  <span id="compare-fr-llc-after" style="font-size: 13px; font-weight: 600; color: #16a34a;">-</span>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                  <span id="compare-fr-llc-delta" style="font-size: 11px; font-weight: 600;">-</span>
                 </div>
               </div>
             </div>

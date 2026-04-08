@@ -403,3 +403,44 @@ footer {
   border-radius: 8px;
   margin-bottom: 20px;
 }
+
+/* LLC Mode Styles */
+.llc-hide {
+  opacity: 0.4;
+  pointer-events: none;
+  position: relative;
+}
+
+.llc-hide::after {
+  content: 'NaN';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 10;
+}
+
+.llc-mode .llc-hide {
+  display: block;
+  opacity: 0.3;
+}
+
+.llc-mode .llc-hide .value {
+  color: #9ca3af;
+}
+
+/* Topology Mode Switch */
+.mode-switch select {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-switch select:hover {
+  border-color: #7c3aed;
+}

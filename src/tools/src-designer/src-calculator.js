@@ -40,6 +40,13 @@ const LLCCalculator = {
     const Vintank = (4 / Math.PI) * Vin_max;
     const Irpk = Vintank / Zeq;
 
+    // 电感比 k = Lm / Lr
+    const Lm = Lm_uH * 1e-6;
+    const k = Lm / Lr;
+    
+    // LLC 谐振频率 fr_LLC = 1 / (2 * π * √(Lr * Cr))
+    const frLLC = 1 / (2 * Math.PI * Math.sqrt(Lr * Cr));
+    
     return {
       Vin_max,
       Vo_nom,
@@ -59,7 +66,11 @@ const LLCCalculator = {
       Cr,
       Zeq,
       Vintank,
-      Irpk
+      Irpk,
+      k,           // 电感比
+      frLLC,       // LLC 谐振频率
+      Lm,          // 励磁电感
+      Lm_uH        // 励磁电感 (μH)
     };
   },
 
@@ -176,7 +187,6 @@ const LLCCalculator = {
       Np_cap,
       Ns_cap,
       Lr_p_uH,
-      Lm_uH,
       // 用于显示偏离度
       Cr_target_nF,
       Ceq_nF: Ceq * 1e9,
@@ -185,10 +195,9 @@ const LLCCalculator = {
       recommended_C_unit: recommended_C_unit,
       // 电感比
       k: k,
-      // 新增：Lm 和 k 值
+      // 新增：Lm
       Lm,
-      Lm_uH,
-      k
+      Lm_uH
     };
   },
 
