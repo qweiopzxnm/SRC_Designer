@@ -2,10 +2,6 @@
  * LLC 验证工具 - 多工况仿真验证
  * 支持 7 条曲线配置：Vin, PriDB1, PriDB2, PriPS2, SecDB_NonPS, SecDB_PS, SecPS
  * 美化版本 - 现代化 UI 设计
- * 
- * 注意：Console 中可能出现 "Tracking Prevention blocked access to storage" 警告
- * 这是浏览器的隐私保护功能阻止第三方 CDN (cdn.jsdelivr.net) 的 storage 访问
- * 不影响功能，因为实际 storage 访问由主页面 (file:// 或 localhost) 处理
  */
 
 const LLCVerifier = {
@@ -157,17 +153,7 @@ const LLCVerifier = {
    * 绑定事件
    */
   bindEvents() {
-    const btnSync = document.getElementById('btn-sync-frozen');
-    if (btnSync) {
-      btnSync.addEventListener('click', (e) => {
-        console.log('🔘 按钮被点击 | Button clicked', e);
-        this.syncFrozenParams();
-      });
-      console.log('✅ 按钮事件已绑定 | Button event bound:', btnSync);
-    } else {
-      console.error('❌ 找不到按钮元素 | Button element not found: btn-sync-frozen');
-    }
-    
+    document.getElementById('btn-sync-frozen').addEventListener('click', () => this.syncFrozenParams());
     document.getElementById('btn-lock-params').addEventListener('click', () => this.toggleLockParams());
     document.getElementById('btn-add-condition').addEventListener('click', () => this.addCondition());
     document.getElementById('btn-save-config').addEventListener('click', () => this.saveConfig());
@@ -354,8 +340,6 @@ const LLCVerifier = {
     try {
       return localStorage.getItem(key);
     } catch (e) {
-      // Tracking Prevention 或隐私模式可能导致访问失败
-      console.log('ℹ️ localStorage 访问受限，使用 sessionStorage | localStorage restricted, using sessionStorage');
       return null;
     }
   },
@@ -367,7 +351,6 @@ const LLCVerifier = {
     try {
       return sessionStorage.getItem(key);
     } catch (e) {
-      console.log('ℹ️ sessionStorage 访问受限 | sessionStorage restricted');
       return null;
     }
   },
@@ -376,41 +359,23 @@ const LLCVerifier = {
    * 从设计页同步冻结参数
    */
   syncFrozenParams(force = false) {
-    console.log('🔵 syncFrozenParams 被调用 | called, force=', force, 'paramsLocked=', this.paramsLocked);
-    
     // 如果参数已锁定，自动解锁并同步
     if (this.paramsLocked) {
-      console.log('🔓 参数已锁定，自动解锁后同步 | Parameters locked, auto-unlocking then syncing');
       this.unlockParams();
     }
     
     try {
       // 优先从 localStorage 读取（支持跨标签页），其次从 sessionStorage 读取
       let savedResults = this.safeGetStorage('llc-designer-results');
-      const source = savedResults ? 'localStorage' : 'sessionStorage';
       if (!savedResults) {
         savedResults = this.safeGetSessionStorage('llc-designer-results');
       }
       
-      // 调试日志：读取原始数据
-      console.log('🔄 验证页尝试同步参数 | Verifier trying to sync params:', {
-        dataSource: source || 'none'
-      });
-      
       if (savedResults) {
         const results = JSON.parse(savedResults);
         
-        // 调试日志：显示读取到的参数
-        console.log('📖 验证页读取到的参数 | Verifier read params:', results);
-        
         // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
         if (!results.Cr_p || !results.Lr || !results.Lm) {
-          console.warn('⚠️ 参数无效 | Invalid params:', {
-            Cr_p: results.Cr_p,
-            Lr: results.Lr,
-            Lm: results.Lm
-          });
-          // 设计页未计算，全部归 0
           this.frozenParams = {
             Cr_p: null,
             Cr_s: null,
@@ -437,17 +402,6 @@ const LLCVerifier = {
           Ns_cap: results.Ns_cap || 1
         };
         
-        // 调试日志：显示转换后的参数
-        console.log('✅ 参数转换完成 | Params converted:', {
-          Cr_p: newParams.Cr_p.toFixed(2) + ' nF',
-          Cr_s: newParams.Cr_s.toFixed(2) + ' nF',
-          Lr: newParams.Lr.toFixed(2) + ' μH',
-          Lm: newParams.Lm.toFixed(2) + ' μH',
-          Np: newParams.Np,
-          Ns: newParams.Ns,
-          Tratio: (newParams.Np / newParams.Ns).toFixed(4)
-        });
-        
         if (newParams.Lm && typeof newParams.Lm === 'number' && isFinite(newParams.Lm)) {
           // 检查参数是否发生变化
           const hasChanged = this.frozenParams.Cr_p !== newParams.Cr_p || 
@@ -457,14 +411,10 @@ const LLCVerifier = {
           this.frozenParams = newParams;
           this.updateFrozenDisplay();
           
-          if (hasChanged && !this.paramsLocked) {
+          if (hasChanged) {
             this.showStatus('✅ 冻结参数已从设计页同步 | Frozen params synced from design page', 'success');
-          } else if (this.paramsLocked) {
-            this.showStatus('🔓 参数已解锁并同步 | Parameters unlocked and synced', 'success');
           }
           return;
-        } else {
-          console.error('❌ Lm 参数无效 | Lm param invalid:', newParams.Lm);
         }
       } else {
         // 没有保存的结果，全部归 0
@@ -484,7 +434,6 @@ const LLCVerifier = {
       }
       
     } catch (error) {
-      console.error('同步参数失败:', error);
       this.showStatus('❌ 同步参数失败 | Sync failed: ' + error.message, 'error');
     }
   },
@@ -655,14 +604,12 @@ const LLCVerifier = {
       if (btnSync) btnSync.disabled = true;
       if (btnLock) btnLock.textContent = '🔓 解锁参数 | Unlock Parameters';
       this.disableFrozenParamsEdit();
-      console.log('🔒 加载锁定状态 | Loaded locked state');
     } else {
       const btnSync = document.getElementById('btn-sync-frozen');
       const btnLock = document.getElementById('btn-lock-params');
       if (btnSync) btnSync.disabled = false;
       if (btnLock) btnLock.textContent = '🔒 锁定参数 | Lock Parameters';
       this.enableFrozenParamsEdit();
-      console.log('🔓 加载解锁状态 | Loaded unlocked state');
     }
     
     this.updateFrozenDisplay();

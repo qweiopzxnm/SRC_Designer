@@ -355,7 +355,6 @@ const LLCDesigner = {
       localStorage.setItem(key, value);
       return true;
     } catch (e) {
-      console.log('ℹ️ localStorage 访问受限（隐私保护）| localStorage restricted (privacy protection)');
       return false;
     }
   },
@@ -368,7 +367,6 @@ const LLCDesigner = {
       sessionStorage.setItem(key, value);
       return true;
     } catch (e) {
-      console.log('ℹ️ sessionStorage 访问受限 | sessionStorage restricted');
       return false;
     }
   },
@@ -401,23 +399,9 @@ const LLCDesigner = {
       const jsonStr = JSON.stringify(results);
       
       // 使用 localStorage 使验证页可以跨标签页访问
-      const savedToLocal = this.safeSetStorage('llc-designer-results', jsonStr);
+      this.safeSetStorage('llc-designer-results', jsonStr);
       // 同时保存到 sessionStorage 保持兼容
       this.safeSetSessionStorage('llc-designer-results', jsonStr);
-      
-      // 调试日志：确认保存的参数
-      console.log('💾 设计页保存参数 | Design page saved params:', {
-        savedToLocal: savedToLocal,
-        Cr_p: (act.Cr_p * 1e9).toFixed(2) + ' nF',
-        Cr_s: (act.Cr_s * 1e9).toFixed(2) + ' nF',
-        Lr: (act.Lr_p * 1e6).toFixed(2) + ' μH',
-        Lm: act.Lm_uH.toFixed(2) + ' μH',
-        Np: act.Np || dsn.Np,
-        Ns: act.Ns || dsn.Ns,
-        Tratio: (act.Np || dsn.Np) / (act.Ns || dsn.Ns)
-      });
-    } else {
-      console.warn('⚠️ 没有计算结果可保存 | No calculation results to save');
     }
   },
 
