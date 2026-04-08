@@ -348,6 +348,32 @@ const LLCDesigner = {
   },
 
   /**
+   * 安全访问 localStorage（处理隐私保护限制）
+   */
+  safeSetStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      console.log('ℹ️ localStorage 访问受限（隐私保护）| localStorage restricted (privacy protection)');
+      return false;
+    }
+  },
+  
+  /**
+   * 安全访问 sessionStorage
+   */
+  safeSetSessionStorage(key, value) {
+    try {
+      sessionStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      console.log('ℹ️ sessionStorage 访问受限 | sessionStorage restricted');
+      return false;
+    }
+  },
+  
+  /**
    * 保存参数到本地存储（供验证页使用）
    */
   saveParams() {
@@ -372,13 +398,16 @@ const LLCDesigner = {
         Ceq: act.Ceq,
         deviation_pct: act.deviation_pct
       };
+      const jsonStr = JSON.stringify(results);
+      
       // 使用 localStorage 使验证页可以跨标签页访问
-      localStorage.setItem('llc-designer-results', JSON.stringify(results));
+      const savedToLocal = this.safeSetStorage('llc-designer-results', jsonStr);
       // 同时保存到 sessionStorage 保持兼容
-      sessionStorage.setItem('llc-designer-results', JSON.stringify(results));
+      this.safeSetSessionStorage('llc-designer-results', jsonStr);
       
       // 调试日志：确认保存的参数
       console.log('💾 设计页保存参数 | Design page saved params:', {
+        savedToLocal: savedToLocal,
         Cr_p: (act.Cr_p * 1e9).toFixed(2) + ' nF',
         Cr_s: (act.Cr_s * 1e9).toFixed(2) + ' nF',
         Lr: (act.Lr_p * 1e6).toFixed(2) + ' μH',

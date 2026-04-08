@@ -2,6 +2,10 @@
  * LLC 验证工具 - 多工况仿真验证
  * 支持 7 条曲线配置：Vin, PriDB1, PriDB2, PriPS2, SecDB_NonPS, SecDB_PS, SecPS
  * 美化版本 - 现代化 UI 设计
+ * 
+ * 注意：Console 中可能出现 "Tracking Prevention blocked access to storage" 警告
+ * 这是浏览器的隐私保护功能阻止第三方 CDN (cdn.jsdelivr.net) 的 storage 访问
+ * 不影响功能，因为实际 storage 访问由主页面 (file:// 或 localhost) 处理
  */
 
 const LLCVerifier = {
@@ -334,6 +338,31 @@ const LLCVerifier = {
   },
 
   /**
+   * 安全访问 localStorage（处理隐私保护限制）
+   */
+  safeGetStorage(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      // Tracking Prevention 或隐私模式可能导致访问失败
+      console.log('ℹ️ localStorage 访问受限，使用 sessionStorage | localStorage restricted, using sessionStorage');
+      return null;
+    }
+  },
+  
+  /**
+   * 安全访问 sessionStorage
+   */
+  safeGetSessionStorage(key) {
+    try {
+      return sessionStorage.getItem(key);
+    } catch (e) {
+      console.log('ℹ️ sessionStorage 访问受限 | sessionStorage restricted');
+      return null;
+    }
+  },
+  
+  /**
    * 从设计页同步冻结参数
    */
   syncFrozenParams(force = false) {
@@ -345,16 +374,14 @@ const LLCVerifier = {
     
     try {
       // 优先从 localStorage 读取（支持跨标签页），其次从 sessionStorage 读取
-      let savedResults = localStorage.getItem('llc-designer-results');
+      let savedResults = this.safeGetStorage('llc-designer-results');
       const source = savedResults ? 'localStorage' : 'sessionStorage';
       if (!savedResults) {
-        savedResults = sessionStorage.getItem('llc-designer-results');
+        savedResults = this.safeGetSessionStorage('llc-designer-results');
       }
       
       // 调试日志：读取原始数据
       console.log('🔄 验证页尝试同步参数 | Verifier trying to sync params:', {
-        hasLocalStorage: !!localStorage.getItem('llc-designer-results'),
-        hasSessionStorage: !!sessionStorage.getItem('llc-designer-results'),
         dataSource: source || 'none'
       });
       
