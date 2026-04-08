@@ -348,13 +348,10 @@ const LLCDesigner = {
   },
 
   /**
-   * 保存参数到本地存储（仅会话期间有效，关闭页面后清除）
+   * 保存参数到本地存储（供验证页使用）
    */
   saveParams() {
-    // 不保存到 localStorage，保护用户隐私
-    // 用户如需保存，请使用"💾 保存配置"按钮导出 JSON 文件
-    
-    // 仅在当前会话中保存结果，供验证页使用（sessionStorage 页面关闭后清除）
+    // 保存到 localStorage，使验证页可以跨标签页访问
     if (this.currentResults) {
       const { dsn, act } = this.currentResults;
       const results = {
@@ -375,7 +372,9 @@ const LLCDesigner = {
         Ceq: act.Ceq,
         deviation_pct: act.deviation_pct
       };
-      // 使用 sessionStorage 而不是 localStorage，页面关闭后自动清除
+      // 使用 localStorage 使验证页可以跨标签页访问
+      localStorage.setItem('llc-designer-results', JSON.stringify(results));
+      // 同时保存到 sessionStorage 保持兼容
       sessionStorage.setItem('llc-designer-results', JSON.stringify(results));
     }
   },

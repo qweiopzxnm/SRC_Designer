@@ -344,8 +344,11 @@ const LLCVerifier = {
     }
     
     try {
-      // 从 sessionStorage 读取（页面关闭后自动清除，保护隐私）
-      const savedResults = sessionStorage.getItem('llc-designer-results');
+      // 优先从 localStorage 读取（支持跨标签页），其次从 sessionStorage 读取
+      let savedResults = localStorage.getItem('llc-designer-results');
+      if (!savedResults) {
+        savedResults = sessionStorage.getItem('llc-designer-results');
+      }
       
       if (savedResults) {
         const results = JSON.parse(savedResults);
@@ -408,7 +411,7 @@ const LLCVerifier = {
           Ns_cap: null
         };
         this.updateFrozenDisplay();
-        this.showStatus('⚠️ 设计页无数据，参数已归零 | No design data, parameters reset', 'warning');
+        this.showStatus('⚠️ 设计页无数据，参数已归零 | No design data, parameters reset\n\n💡 请先在设计页 (index.html) 输入参数并点击"计算"，然后再点击此按钮同步参数。\n💡 Please enter parameters in Design Page (index.html) and click "Calculate" first, then click this button to sync.', 'warning');
         return;
       }
       
