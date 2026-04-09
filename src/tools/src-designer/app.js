@@ -29,17 +29,23 @@ const LLCDesigner = {
     const select = document.getElementById('topology-mode');
     this.topologyMode = select.value;
     
+    // TopologyChange 参数：LLC 时为 1，SRC 时为 0
+    const topologyChange = this.topologyMode === 'LLC' ? 1 : 0;
+    
+    // 存储到 sessionStorage 供验证页使用
+    this.safeSetSessionStorage('TopologyChange', topologyChange.toString());
+    
     const header = document.querySelector('header');
     const body = document.body;
     
     if (this.topologyMode === 'LLC') {
       header.classList.add('llc-mode');
       body.classList.add('llc-mode');
-      console.log('🔌 切换到 LLC 模式 | Switched to LLC mode');
+      console.log('🔌 Topology: LLC (TopologyChange=1)');
     } else {
       header.classList.remove('llc-mode');
       body.classList.remove('llc-mode');
-      console.log('🔌 切换到 SRC 模式 | Switched to SRC mode');
+      console.log('🔌 Topology: SRC (TopologyChange=0)');
     }
     
     // 如果已有计算结果，重新更新 UI
@@ -216,41 +222,44 @@ const LLCDesigner = {
     // 并联数量
     document.getElementById('act-Np_cap').textContent = act.Np_cap || 1;
     
-    // LLC 模式下副边电容显示 NaN
+    // 副边电容：
+    // - LLC 模式：副边无谐振电容，显示 NaN
+    // - SRC 模式：副边电容 = C_unit × Ns_cap
     if (isLLC) {
       document.getElementById('act-Ns_cap').textContent = 'NaN';
       document.getElementById('act-Cr_s').textContent = 'NaN';
     } else {
       document.getElementById('act-Ns_cap').textContent = act.Ns_cap || 1;
+      // Cr_s = C_unit × Ns_cap
       const Cr_s_nF = (act.C_unit_nF || 47) * (act.Ns_cap || 1);
       document.getElementById('act-Cr_s').textContent = Cr_s_nF.toFixed(1);
     }
     
-    // 谐振电容（由 C_unit × N_cap 计算）
+    // 原边谐振电容（由 C_unit × Np_cap 计算）
     const Cr_p_nF = (act.C_unit_nF || 47) * (act.Np_cap || 1);
     document.getElementById('act-Cr_p').textContent = Cr_p_nF.toFixed(1);
     
     // 电感
     document.getElementById('act-Lr_p').textContent = ((act.Lr_p_uH || act.Lr_p * 1e6) || 0).toFixed(1);
     
-    // 新增：Lm
+    // 励磁电感 Lm
     document.getElementById('act-Lm').textContent = (act.Lm_uH || act.Lm * 1e6 || 0).toFixed(1);
     
-    // 等效电容：LLC 模式下 Ceq = Cr_p
-    const Ceq_nF = isLLC ? Cr_p_nF : (act.Ceq * 1e9);
+    // 等效电容
+    const Ceq_nF = act.Ceq * 1e9;
     document.getElementById('act-Ceq').textContent = Ceq_nF.toFixed(2);
     document.getElementById('act-Cr_target').textContent = act.Cr_target_nF.toFixed(2);
     
     // 偏离度显示（带颜色）
     const deviationElem = document.getElementById('act-deviation');
-    const deviationVal = isLLC ? 0 : act.deviation_pct;  // LLC 模式下无偏离度概念
-    deviationElem.textContent = isLLC ? 'N/A' : (deviationVal > 0 ? '+' + deviationVal.toFixed(2) : deviationVal.toFixed(2));
-    if (!isLLC && Math.abs(deviationVal) < 5) {
+    const deviationVal = act.deviation_pct;
+    deviationElem.textContent = deviationVal > 0 ? '+' + deviationVal.toFixed(2) : deviationVal.toFixed(2);
+    if (Math.abs(deviationVal) < 5) {
       deviationElem.style.color = '#16a34a'; // 绿色：优秀
-    } else if (!isLLC && Math.abs(deviationVal) < 10) {
+    } else if (Math.abs(deviationVal) < 10) {
       deviationElem.style.color = '#ca8a04'; // 黄色：可接受
     } else {
-      deviationElem.style.color = '#9ca3af'; // 灰色：N/A
+      deviationElem.style.color = '#dc2626'; // 红色：偏离过大
     }
     
     document.getElementById('act-Q').textContent = act.Q.toFixed(3);
@@ -429,8 +438,12 @@ const LLCDesigner = {
     // 保存到 localStorage，使验证页可以跨标签页访问
     if (this.currentResults) {
       const { dsn, act } = this.currentResults;
+      // TopologyChange 参数：LLC 时为 1，SRC 时为 0
+      const topologyChange = this.topologyMode === 'LLC' ? 1 : 0;
+      
       const results = {
         topologyMode: this.topologyMode,  // 保存拓扑模式
+        TopologyChange: topologyChange,   // 拓扑变更标志：LLC=1, SRC=0
         Cr_p: act.Cr_p,
         Cr_s: act.Cr_s,
         Lr: act.Lr_p,
@@ -517,7 +530,7 @@ const LLCDesigner = {
         }
       });
       
-      this.showInfo('✏️ 点击数值进行修改，完成后点击"保存"\n💡 Cr_p = C_unit × Np_cap, Cr_s = C_unit × Ns_cap');
+      this.showInfo('✏️ 点击数值进行修改，完成后点击"保存"\n💡 Cr_p = C_unit × Np_cap, Cr_s = C_unit × Ns_cap\n💡 SRC: Ns_cap ≈ Np_cap × Tratio（原副边电容比例与匝比成正比）\n💡 自动优化：在满足比例前提下，使谐振频率最接近设定值');
     } else {
       // 保存并回推
       this.saveAndRecalculate();
@@ -554,6 +567,13 @@ const LLCDesigner = {
   
   /**
    * 保存实际选定参数并回推计算
+   * 
+   * 拓扑说明：
+   * - SRC: 原边和副边电容都参与谐振（串联等效）
+   *        Cr_s 反射到原边：Cr_s_ref = Cr_s / Tratio²
+   *        Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)
+   * - LLC: 只有原边电容参与谐振，副边无电容
+   *        Ceq = Cr_p
    */
   saveAndRecalculate() {
     // 获取用户编辑的参数
@@ -561,16 +581,10 @@ const LLCDesigner = {
     const Ns = parseInt(document.getElementById('act-Ns').textContent);
     const C_unit_nF = parseFloat(document.getElementById('act-C_unit').textContent);
     const Np_cap = parseInt(document.getElementById('act-Np_cap').textContent);
-    const Ns_cap = parseInt(document.getElementById('act-Ns_cap').textContent);
     const Lr_p_uH = parseFloat(document.getElementById('act-Lr_p').textContent);
     
-    // 验证参数（LLC 模式下 Ns_cap 不参与验证）
-    const isLLC = this.topologyMode === 'LLC';
+    // 验证参数
     if (!Np || !Ns || !C_unit_nF || !Np_cap || !Lr_p_uH) {
-      this.showError('参数必须为正数');
-      return;
-    }
-    if (!isLLC && !Ns_cap) {
       this.showError('参数必须为正数');
       return;
     }
@@ -586,11 +600,34 @@ const LLCDesigner = {
     const Tratio = Np / Ns;
     const Tratio2 = Tratio * Tratio;
     
-    // 计算谐振电容：Cr_p = C_unit × Np_cap, Cr_s = C_unit × Ns_cap
+    // 计算原边谐振电容：Cr_p = C_unit × Np_cap
     const Cr_p_nF = C_unit_nF * Np_cap;
-    const Cr_s_nF = C_unit_nF * Ns_cap;
     const Cr_p = Cr_p_nF * 1e-9;  // 转换为 F
-    const Cr_s = Cr_s_nF * 1e-9;  // 转换为 F
+    
+    // 读取用户编辑的副边电容并联数量（SRC 模式）
+    // LLC 模式下副边无电容，Ns_cap = 0
+    // SRC 模式下：Ns_cap = round(Np_cap × Tratio)，但允许用户手动修改
+    let Ns_cap, Cr_s_nF, Cr_s;
+    if (this.topologyMode === 'LLC') {
+      Ns_cap = 0;
+      Cr_s_nF = 0;
+      Cr_s = 0;
+    } else {
+      // SRC 模式：原副边电容比例与匝比成正比
+      // Cr_s / Cr_p = Tratio → Ns_cap = round(Np_cap × Tratio)
+      const Ns_cap_exact = Np_cap * Tratio;
+      Ns_cap = Math.round(Ns_cap_exact);  // 默认值：取最接近的整数
+      
+      // 从 UI 读取用户编辑的 Ns_cap（如果用户手动修改了）
+      const Ns_cap_text = document.getElementById('act-Ns_cap').textContent;
+      const Ns_cap_user = parseInt(Ns_cap_text);
+      if (!isNaN(Ns_cap_user) && Ns_cap_user > 0) {
+        Ns_cap = Ns_cap_user;  // 使用用户编辑的值
+      }
+      
+      Cr_s_nF = C_unit_nF * Ns_cap;  // 副边电容 = 电容分辨率 × 副边并联数量
+      Cr_s = Cr_s_nF * 1e-9;
+    }
     
     // 计算电感值
     const Lr_p = Lr_p_uH * 1e-6;  // 转换为 H
@@ -598,19 +635,19 @@ const LLCDesigner = {
     const Lm = Lm_uH * 1e-6;  // 转换为 H
     
     // 计算等效电容
-    // LLC 模式：Ceq = Cr_p（只有原边电容参与谐振）
-    // SRC 模式：Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)（串联等效）
+    // LLC 模式：Ceq = Cr_p
+    // SRC 模式：Ceq = (Cr_p × Cr_s_ref) / (Cr_p + Cr_s_ref)
     let Ceq;
-    if (isLLC) {
-      Ceq = Cr_p;  // LLC 模式 Ceq = Cr_p
+    if (this.topologyMode === 'LLC') {
+      Ceq = Cr_p;
     } else {
-      const Cr_s_reflected = Cr_s / Tratio2;  // 副边电容反射到原边
-      Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);  // 串联等效
+      const Cr_s_reflected = Cr_s / Tratio2;
+      Ceq = (Cr_p * Cr_s_reflected) / (Cr_p + Cr_s_reflected);
     }
     
-    // 计算偏离度（相对于设计电容 Cr，LLC 模式不计算偏离度）
+    // 计算偏离度（相对于设计电容 Cr）
     const Cr_target = (this.currentResults?.dsn?.Cr || 0);
-    const deviation_pct = isLLC ? 0 : ((Ceq - Cr_target) / Cr_target) * 100;
+    const deviation_pct = ((Ceq - Cr_target) / Cr_target) * 100;
     
     // 计算实际 Q 值和谐振频率
     const Racp = this.currentResults?.dsn?.Racp || 1;
@@ -630,30 +667,28 @@ const LLCDesigner = {
     document.getElementById('act-Tratio').textContent = Tratio.toFixed(4);
     document.getElementById('act-Cr_p').textContent = Cr_p_nF.toFixed(1);
     
-    // LLC 模式下副边电容显示 NaN
-    if (isLLC) {
+    // 副边电容：
+    // - LLC 模式：副边无谐振电容，显示 NaN
+    // - SRC 模式：副边电容 = C_unit × Ns_cap
+    if (this.topologyMode === 'LLC') {
       document.getElementById('act-Cr_s').textContent = 'NaN';
     } else {
+      // Cr_s_nF = C_unit_nF × Ns_cap（从用户编辑的值计算）
       document.getElementById('act-Cr_s').textContent = Cr_s_nF.toFixed(1);
     }
     
     document.getElementById('act-Ceq').textContent = (Ceq * 1e9).toFixed(2);
     document.getElementById('act-Cr_target').textContent = (Cr_target * 1e9).toFixed(2);
     
-    // 偏离度显示（LLC 模式显示 N/A）
+    // 偏离度显示
     const deviationElem = document.getElementById('act-deviation');
-    if (isLLC) {
-      deviationElem.textContent = 'N/A';
-      deviationElem.style.color = '#9ca3af';
+    deviationElem.textContent = deviation_pct > 0 ? '+' + deviation_pct.toFixed(2) : deviation_pct.toFixed(2);
+    if (Math.abs(deviation_pct) < 5) {
+      deviationElem.style.color = '#16a34a';  // 绿色：优秀
+    } else if (Math.abs(deviation_pct) < 10) {
+      deviationElem.style.color = '#ca8a04';  // 黄色：可接受
     } else {
-      deviationElem.textContent = deviation_pct > 0 ? '+' + deviation_pct.toFixed(2) : deviation_pct.toFixed(2);
-      if (Math.abs(deviation_pct) < 5) {
-        deviationElem.style.color = '#16a34a';
-      } else if (Math.abs(deviation_pct) < 10) {
-        deviationElem.style.color = '#ca8a04';
-      } else {
-        deviationElem.style.color = '#dc2626';
-      }
+      deviationElem.style.color = '#dc2626';  // 红色：偏离过大
     }
     
     document.getElementById('act-Q').textContent = Q_actual.toFixed(3);
@@ -671,7 +706,7 @@ const LLCDesigner = {
       this.currentResults.act.Tratio = Tratio;
       this.currentResults.act.C_unit_nF = C_unit_nF;
       this.currentResults.act.Np_cap = Np_cap;
-      this.currentResults.act.Ns_cap = Ns_cap;
+      this.currentResults.act.Ns_cap = this.topologyMode === 'LLC' ? 0 : Ns_cap;
       this.currentResults.act.Cr_p = Cr_p;
       this.currentResults.act.Cr_s = Cr_s;
       this.currentResults.act.Lr_p = Lr_p;
@@ -707,11 +742,11 @@ const LLCDesigner = {
     
     // 获取 LLC 谐振频率（从 act 获取实际值）
     const oldFrLLC = this.currentResults?.act?.frLLC ? this.currentResults.act.frLLC / 1000 : 0;  // Hz 转 kHz
-    const isLLC = this.topologyMode === 'LLC';
     
     // 计算新的 LLC 谐振频率：fr_LLC = 1 / (2 * π * √((Lr + Lm) * Ceq))
+    // SRC 和 LLC 拓扑都计算 LLC 谐振频率
     const newLr = parseFloat(document.getElementById('act-Lr_p').textContent) * 1e-6;  // μH 转 H
-    const newFrLLC = isLLC ? (1 / (2 * Math.PI * Math.sqrt((newLr + newLm * 1e-6) * newCeq))) / 1000 : 0;  // Hz 转 kHz
+    const newFrLLC = (1 / (2 * Math.PI * Math.sqrt((newLr + newLm * 1e-6) * newCeq))) / 1000;  // Hz 转 kHz
     
     // 计算变化量
     const ceqDelta = oldCeq > 0 ? ((newCeq - oldCeq) / oldCeq) * 100 : 0;
@@ -752,16 +787,10 @@ const LLCDesigner = {
     document.getElementById('compare-lm-after').textContent = newLm.toFixed(1) + ' μH';
     document.getElementById('compare-lm-delta').innerHTML = formatDelta(lmDelta);
     
-    // LLC 谐振频率
-    if (isLLC) {
-      document.getElementById('compare-fr-llc-before').textContent = oldFrLLC.toFixed(1) + ' kHz';
-      document.getElementById('compare-fr-llc-after').textContent = newFrLLC.toFixed(1) + ' kHz';
-      document.getElementById('compare-fr-llc-delta').innerHTML = formatDelta(frLLCDelta);
-    } else {
-      document.getElementById('compare-fr-llc-before').textContent = 'N/A';
-      document.getElementById('compare-fr-llc-after').textContent = 'N/A';
-      document.getElementById('compare-fr-llc-delta').textContent = '-';
-    }
+    // LLC 谐振频率：SRC 和 LLC 拓扑都显示
+    document.getElementById('compare-fr-llc-before').textContent = oldFrLLC.toFixed(1) + ' kHz';
+    document.getElementById('compare-fr-llc-after').textContent = newFrLLC.toFixed(1) + ' kHz';
+    document.getElementById('compare-fr-llc-delta').innerHTML = formatDelta(frLLCDelta);
     
     panel.style.display = 'block';
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

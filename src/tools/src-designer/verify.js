@@ -161,7 +161,6 @@ const LLCVerifier = {
     document.getElementById('btn-add-condition').addEventListener('click', () => this.addCondition());
     document.getElementById('btn-save-config').addEventListener('click', () => this.saveConfig());
     document.getElementById('btn-load-config').addEventListener('click', () => this.loadConfig());
-    document.getElementById('btn-import-all').addEventListener('click', () => this.importAllConfig());
     document.getElementById('btn-build-params').addEventListener('click', () => this.buildParams());
     document.getElementById('btn-run-simulation').addEventListener('click', () => this.runSimulation());
     
@@ -374,11 +373,23 @@ const LLCVerifier = {
         savedResults = this.safeGetSessionStorage('llc-designer-results');
       }
       
+      // 读取 TopologyChange 参数（LLC=1, SRC=0）
+      let topologyChange = this.safeGetSessionStorage('TopologyChange');
+      if (topologyChange) {
+        this.topologyMode = topologyChange === '1' ? 'LLC' : 'SRC';
+      }
+      
       if (savedResults) {
         const results = JSON.parse(savedResults);
         
-        // 同步拓扑模式
-        this.topologyMode = results.topologyMode || 'SRC';
+        // 同步拓扑模式（如果 results 中有则覆盖）
+        if (results.topologyMode) {
+          this.topologyMode = results.topologyMode;
+        }
+        // 如果 results 中有 TopologyChange，优先使用
+        if (results.TopologyChange !== undefined) {
+          this.topologyMode = results.TopologyChange === 1 ? 'LLC' : 'SRC';
+        }
         
         // 检查是否有有效的计算结果（用户是否点击了设计页的计算）
         if (!results.Cr_p || !results.Lr || !results.Lm_uH) {
@@ -446,6 +457,8 @@ const LLCVerifier = {
 
   /**
    * 更新冻结参数显示
+   * - LLC 拓扑：副边无谐振电容，显示 NaN
+   * - SRC 拓扑：副边电容参与谐振，显示实际值
    */
   updateFrozenDisplay() {
     const fp = this.frozenParams;
@@ -453,7 +466,9 @@ const LLCVerifier = {
     
     document.getElementById('frozen-Crp').textContent = fp.Cr_p ? fp.Cr_p.toFixed(1) : '-';
     
-    // LLC 模式下副边电容显示 NaN
+    // 副边电容：
+    // - LLC 模式：副边无谐振电容，显示 NaN
+    // - SRC 模式：副边电容参与谐振，显示实际值
     if (isLLC) {
       document.getElementById('frozen-Crs').textContent = 'NaN';
       document.getElementById('frozen-Ns-cap').textContent = 'NaN';
@@ -572,7 +587,7 @@ const LLCVerifier = {
     } else if (label.includes('Lr')) {
       this.frozenParams.Lr = newValue;
     } else if (label.includes('Lm')) {
-      this.frozenParams.Lm = newValue;
+      this.frozenParams.Lm_uH = newValue;  // 修正：使用 Lm_uH
     } else if (label.includes('Np')) {
       this.frozenParams.Np = newValue;
     } else if (label.includes('Ns')) {
@@ -604,6 +619,11 @@ const LLCVerifier = {
     if (savedParams) {
       try {
         this.frozenParams = JSON.parse(savedParams);
+        // 兼容性处理：如果保存的是 Lm，转换为 Lm_uH
+        if (this.frozenParams.Lm !== undefined && this.frozenParams.Lm_uH === undefined) {
+          this.frozenParams.Lm_uH = this.frozenParams.Lm;
+          delete this.frozenParams.Lm;
+        }
       } catch (e) {
         this.frozenParams = { Cr_p: null, Cr_s: null, Lr: null, Lm_uH: null, Np: null, Ns: null, Np_cap: null, Ns_cap: null };
       }
@@ -923,7 +943,7 @@ const LLCVerifier = {
     row.className = 'condition-row';
     row.dataset.conditionId = conditionId;
     
-    const defaults = { Vin: 810, Vref: 680, Po: 11000, Rload: 42 };
+    const defaults = { Vin: 810, Vref: 680, Po: 11000, Rload: 42, ChargeMode: 1 };
     
     row.innerHTML = `
       <div class="row-label">工况 #${conditionId}</div>
@@ -931,6 +951,12 @@ const LLCVerifier = {
       <div><input type="number" id="vref-${conditionId}" value="${defaults.Vref}" step="1" placeholder="Vref"></div>
       <div><input type="number" id="po-${conditionId}" value="${defaults.Po}" step="100" placeholder="Po"></div>
       <div><input type="number" id="rload-${conditionId}" value="${defaults.Rload}" step="1" placeholder="Rload"></div>
+      <div>
+        <select id="charge-mode-${conditionId}" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; font-weight: 600; cursor: pointer;">
+          <option value="1" ${defaults.ChargeMode === 1 ? 'selected' : ''}>⚡ Charge</option>
+          <option value="0" ${defaults.ChargeMode === 0 ? 'selected' : ''}>🔋 Discharge</option>
+        </select>
+      </div>
       <div><button class="btn-remove" onclick="LLCVerifier.removeCondition(${conditionId})">删除</button></div>
     `;
     
@@ -996,6 +1022,10 @@ const LLCVerifier = {
       const id = row.dataset.conditionId;
       const vref = parseFloat(document.getElementById(`vref-${id}`).value) || 0;
       
+      // 读取 Charge/Discharge 模式
+      const chargeModeSelect = document.getElementById(`charge-mode-${id}`);
+      const chargeMode = chargeModeSelect ? parseInt(chargeModeSelect.value) : 1;
+      
       // 根据曲线使能状态计算各参数值
       const condition = {
         id: index + 1,
@@ -1003,6 +1033,7 @@ const LLCVerifier = {
         Vin: this.curveEnabled.vin ? Math.round(this.interpolate('vin', vref)) : (parseFloat(document.getElementById(`vin-${id}`).value) || 0),
         Po: parseFloat(document.getElementById(`po-${id}`).value) || 0,
         Rload: parseFloat(document.getElementById(`rload-${id}`).value) || 0,
+        ChargeMode: chargeMode,  // 1 = Charge, 0 = Discharge
         // 时序参数
         PriDB1: this.curveEnabled.pridb1 ? this.interpolate('pridb1', vref) : this.curveDefinitions.pridb1.default,
         PriDB2: this.curveEnabled.pridb2 ? this.interpolate('pridb2', vref) : this.curveDefinitions.pridb2.default,
@@ -1038,7 +1069,7 @@ const LLCVerifier = {
           Cr_p: this.frozenParams.Cr_p,
           Cr_s: this.frozenParams.Cr_s,
           Lr: this.frozenParams.Lr,
-          Lm: this.frozenParams.Lm,
+          Lm: this.frozenParams.Lm_uH,  // 励磁电感 (μH)
           Np: this.frozenParams.Np,
           Ns: this.frozenParams.Ns,
           Np_cap: this.frozenParams.Np_cap || 1,
@@ -1112,7 +1143,7 @@ const LLCVerifier = {
               Cr_p: config.frozenParams.Cr_p,
               Cr_s: config.frozenParams.Cr_s,
               Lr: config.frozenParams.Lr,
-              Lm: config.frozenParams.Lm,
+              Lm_uH: config.frozenParams.Lm_uH || config.frozenParams.Lm,  // 兼容旧格式
               Np: config.frozenParams.Np,
               Ns: config.frozenParams.Ns,
               Np_cap: config.frozenParams.Np_cap || 1,
@@ -1183,161 +1214,16 @@ const LLCVerifier = {
               document.getElementById(`vref-${this.conditionCounter}`).value = cond.Vref || 680;
               document.getElementById(`po-${this.conditionCounter}`).value = cond.Po || 11000;
               document.getElementById(`rload-${this.conditionCounter}`).value = cond.Rload || 42;
+              // 加载 ChargeMode
+              const chargeModeSelect = document.getElementById(`charge-mode-${this.conditionCounter}`);
+              if (chargeModeSelect && cond.ChargeMode !== undefined) {
+                chargeModeSelect.value = cond.ChargeMode.toString();
+              }
             }
           });
           
           this.updateConditionInputs();
           this.showStatus(`✅ 已导入 ${config.conditions.length} 个工况（曲线保持不变）| Imported ${config.conditions.length} conditions (curves unchanged)`, 'success');
-          
-        } catch (error) {
-          this.showStatus('❌ 导入失败 | Import failed: ' + error.message, 'error');
-        }
-      };
-      
-      reader.onerror = () => this.showStatus('❌ 读取文件失败 | Failed to read file', 'error');
-      reader.readAsText(file);
-    };
-    
-    input.click();
-  },
-
-  /**
-   * 一键导入全部（工况 + 曲线）
-   */
-  importAllConfig() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const config = JSON.parse(event.target.result);
-          
-          if (!config.conditions || !Array.isArray(config.conditions)) {
-            throw new Error('无效的配置文件格式 | Invalid config file format');
-          }
-          
-          // 清空现有工况
-          document.getElementById('conditions-container').innerHTML = '';
-          this.conditionCounter = 0;
-          
-          // 加载冻结参数
-          if (config.frozenParams) {
-            this.frozenParams = {
-              Cr_p: config.frozenParams.Cr_p,
-              Cr_s: config.frozenParams.Cr_s,
-              Lr: config.frozenParams.Lr,
-              Lm: config.frozenParams.Lm,
-              Np: config.frozenParams.Np,
-              Ns: config.frozenParams.Ns,
-              Np_cap: config.frozenParams.Np_cap || 1,
-              Ns_cap: config.frozenParams.Ns_cap || 1
-            };
-            this.updateFrozenDisplay();
-          }
-          
-          // 加载 MOSFET 模型
-          if (config.mosfetModels) {
-            this.mosfetModels.pri = config.mosfetModels.pri || null;
-            this.mosfetModels.sec = config.mosfetModels.sec || null;
-            localStorage.setItem('llc-verifier-mos-pri', this.mosfetModels.pri || '');
-            localStorage.setItem('llc-verifier-mos-sec', this.mosfetModels.sec || '');
-          }
-          
-          // 加载热仿真设置
-          if (config.thermalSettings) {
-            this.thermalSettings.enabled = config.thermalSettings.enabled || false;
-            this.thermalSettings.Tvj = config.thermalSettings.Tvj || 130;
-            
-            const thermalCheckbox = document.getElementById('thermal-sim-enable');
-            const tvjInput = document.getElementById('tvj-input');
-            if (thermalCheckbox) thermalCheckbox.checked = this.thermalSettings.enabled;
-            if (tvjInput) tvjInput.value = this.thermalSettings.Tvj;
-            
-            this.saveThermalSettings();
-          }
-          
-          // 加载热模型变量
-          if (config.thermalVarsStruct) {
-            this.thermalVarsStruct = config.thermalVarsStruct;
-          }
-          if (config.thermalVarsListPri) {
-            this.thermalVarsListPri = config.thermalVarsListPri;
-          }
-          if (config.thermalVarsListSec) {
-            this.thermalVarsListSec = config.thermalVarsListSec;
-          }
-          this.renderThermalVarsPanel();
-          
-          // 加载 PLECS 路径
-          if (config.plecsToolboxPath) {
-            this.plecsToolboxPath = config.plecsToolboxPath;
-            this.savePlecsToolboxPath();
-            this.updatePlecsPathDisplay();
-          }
-          
-          // 加载裕量设置
-          if (config.marginSettings) {
-            this.marginSettings.voltageMargin = config.marginSettings.voltageMargin || 20;
-            this.marginSettings.currentMargin = config.marginSettings.currentMargin || 20;
-            
-            const voltageMarginInput = document.getElementById('voltage-margin');
-            const currentMarginInput = document.getElementById('current-margin');
-            if (voltageMarginInput) voltageMarginInput.value = this.marginSettings.voltageMargin;
-            if (currentMarginInput) currentMarginInput.value = this.marginSettings.currentMargin;
-          }
-          
-          // 加载曲线数据
-          if (config.curveDefinitions) {
-            Object.keys(config.curveDefinitions).forEach(key => {
-              if (this.curveDefinitions[key] && config.curveDefinitions[key].data) {
-                this.curveDefinitions[key].data = config.curveDefinitions[key].data;
-              }
-            });
-            Object.keys(this.curveDefinitions).forEach(key => {
-              this.renderPoints(key);
-              this.renderChart(key);
-            });
-          }
-          
-          // 加载曲线使能状态
-          if (config.curveEnabled) {
-            this.curveEnabled = config.curveEnabled;
-            Object.keys(this.curveEnabled).forEach(key => {
-              const checkbox = document.getElementById(`${this.keyToId(key)}-enable`);
-              if (checkbox) {
-                checkbox.checked = this.curveEnabled[key];
-                const card = document.getElementById(`card-${this.keyToId(key)}`);
-                if (card) {
-                  if (this.curveEnabled[key]) {
-                    card.classList.add('enabled');
-                  } else {
-                    card.classList.remove('enabled');
-                  }
-                }
-              }
-            });
-          }
-          
-          // 加载工况
-          config.conditions.forEach((cond) => {
-            this.addCondition();
-            const row = document.querySelector(`[data-condition-id="${this.conditionCounter}"]`);
-            if (row) {
-              document.getElementById(`vin-${this.conditionCounter}`).value = cond.Vin || 810;
-              document.getElementById(`vref-${this.conditionCounter}`).value = cond.Vref || 680;
-              document.getElementById(`po-${this.conditionCounter}`).value = cond.Po || 11000;
-              document.getElementById(`rload-${this.conditionCounter}`).value = cond.Rload || 42;
-            }
-          });
-          
-          this.updateConditionInputs();
-          this.showStatus(`✅ 已导入全部配置（${config.conditions.length} 个工况 + 曲线）| Imported all config (${config.conditions.length} conditions + curves)`, 'success');
           
         } catch (error) {
           this.showStatus('❌ 导入失败 | Import failed: ' + error.message, 'error');
@@ -1415,7 +1301,6 @@ const LLCVerifier = {
               const checkbox = document.getElementById(`${this.keyToId(key)}-enable`);
               if (checkbox) {
                 checkbox.checked = this.curveEnabled[key];
-                // 更新卡片视觉状态
                 const card = document.getElementById(`card-${this.keyToId(key)}`);
                 if (card) {
                   if (this.curveEnabled[key]) {
@@ -1488,10 +1373,27 @@ const LLCVerifier = {
   
   /**
    * 检查仿真参数是否有空值（检查所有结构体参数）
+   * 注意：frozenParams 中的字段允许为空（用户可以手动编辑），不检查
    */
   checkEmptyParams(simulationData) {
     const emptyFields = [];
-    return this.checkNullValues(simulationData, '', emptyFields);
+    
+    // 创建检查对象，排除 frozenParams（允许用户手动编辑）
+    const checkData = {
+      marginSettings: simulationData.marginSettings,
+      thermalSettings: simulationData.thermalSettings,
+      curveDefinitions: simulationData.curveDefinitions,
+      curveEnabled: simulationData.curveEnabled,
+      conditions: simulationData.conditions
+    };
+    
+    // 检查 MOSFET 模型路径（可选，但如果有则不能为空字符串）
+    if (simulationData.mosfetModels) {
+      if (simulationData.mosfetModels.pri === '') checkData.mosfetModels_pri = 'empty';
+      if (simulationData.mosfetModels.sec === '') checkData.mosfetModels_sec = 'empty';
+    }
+    
+    return this.checkNullValues(checkData, '', emptyFields);
   },
   
   /**
@@ -1503,15 +1405,19 @@ const LLCVerifier = {
       return;
     }
     
+    // TopologyChange 参数：LLC 时为 1，SRC 时为 0
+    const topologyChange = this.topologyMode === 'LLC' ? 1 : 0;
+    
     // 生成 verify_input.json（包含所有曲线参数、MOSFET 模型、热仿真设置、热模型变量、PLECS 路径和裕量）
     const simulationData = {
+      TopologyChange: topologyChange,  // 拓扑变更标志：LLC=1, SRC=0
       frozenParams: {
-        Cr_p: this.frozenParams.Cr_p,
-        Cr_s: this.frozenParams.Cr_s,
-        Lr: this.frozenParams.Lr,
-        Lm: this.frozenParams.Lm,
-        Np: this.frozenParams.Np,
-        Ns: this.frozenParams.Ns,
+        Cr_p: this.frozenParams.Cr_p || 0,
+        Cr_s: this.frozenParams.Cr_s || 0,
+        Lr: this.frozenParams.Lr || 0,
+        Lm: this.frozenParams.Lm_uH || this.frozenParams.Lm || 0,  // 励磁电感 (μH)，兼容旧字段 Lm
+        Np: this.frozenParams.Np || 0,
+        Ns: this.frozenParams.Ns || 0,
         Np_cap: this.frozenParams.Np_cap || 1,
         Ns_cap: this.frozenParams.Ns_cap || 1
       },

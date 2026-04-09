@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SRC 验证工具 - 多工况仿真</title>
+  <title>LLC-SRC 验证工具 - 多工况仿真</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -501,7 +501,7 @@
     
     .condition-row {
       display: grid;
-      grid-template-columns: 70px 1fr 1fr 1fr 1fr 50px;
+      grid-template-columns: 70px 1fr 1fr 1fr 1fr 110px 50px;
       gap: 10px;
       align-items: center;
       padding: 14px 16px;
@@ -717,13 +717,13 @@
   </style>
 </head>
 <body>
-  <button class="back-to-design" onclick="window.location.href='index.html'">← 返回设计页
+  <button class="back-to-design" onclick="window.location.href='index.html'">← 返回 LLC-SRC 设计页
     <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Back to Design</span>
   </button>
   
   <div class="container">
     <header>
-      <h1>🔍 SRC 验证工具</h1>
+      <h1>🔍 LLC-SRC 验证工具</h1>
       <p class="subtitle">多工况仿真验证 · 曲线可视化配置</p>
     </header>
 
@@ -1066,6 +1066,7 @@
             <div class="row-label">Vref (V)</div>
             <div class="row-label">Po (W)</div>
             <div class="row-label">Rload (Ω)</div>
+            <div class="row-label">Mode | 模式</div>
             <div class="row-label">操作 | Action</div>
           </div>
           <div id="conditions-container">
@@ -1082,9 +1083,6 @@
           </button>
           <button id="btn-load-config" class="btn btn-outline">📂 导入配置
             <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Load Config</span>
-          </button>
-          <button id="btn-import-all" class="btn btn-primary">📥 一键导入全部
-            <span style="display: block; font-size: 10px; opacity: 0.9; margin-top: 2px;">Import All (Config + Curves)</span>
           </button>
           <button id="btn-build-params" class="btn btn-outline">📝 建立仿真参数
             <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Build Simulation Parameters</span>
@@ -1106,7 +1104,7 @@
     </main>
 
     <footer style="text-align: center; padding: 20px; color: #6b7280; font-size: 13px;">
-      <p>SRC 验证工具 - 多工况仿真验证 | SRC Verifier - Multi-Condition Simulation</p>
+      <p>LLC-SRC 验证工具 - 多工况仿真验证 | LLC-SRC Verifier - Multi-Condition Simulation</p>
     </footer>
   </div>
 
