@@ -22,9 +22,5 @@ if exist "verify_output.json" (
     echo.
     echo === Simulation Complete ===
     echo Output: verify_output.json
-) else (
-    echo.
-    echo === Simulation Failed ===
-    echo Check MATLAB output for errors.
 )
 pause
