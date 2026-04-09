@@ -1065,33 +1065,6 @@ const LLCVerifier = {
     
     try {
       const configData = {
-        frozenParams: {
-          Cr_p: this.frozenParams.Cr_p,
-          Cr_s: this.frozenParams.Cr_s,
-          Lr: this.frozenParams.Lr,
-          Lm: this.frozenParams.Lm_uH,  // 励磁电感 (μH)
-          Np: this.frozenParams.Np,
-          Ns: this.frozenParams.Ns,
-          Np_cap: this.frozenParams.Np_cap || 1,
-          Ns_cap: this.frozenParams.Ns_cap || 1
-        },
-        marginSettings: {
-          voltageMargin: this.marginSettings.voltageMargin || 20,
-          currentMargin: this.marginSettings.currentMargin || 20
-        },
-        mosfetModels: {
-          pri: this.mosfetModels.pri || null,
-          sec: this.mosfetModels.sec || null
-        },
-        thermalSettings: {
-          enabled: this.thermalSettings.enabled,
-          Tvj: this.thermalSettings.Tvj || 130
-        },
-        thermalVarsStruct: this.thermalVarsStruct,
-        thermalVarsListPri: this.thermalVarsListPri,
-        thermalVarsListSec: this.thermalVarsListSec,
-        curveDefinitions: this.curveDefinitions,
-        curveEnabled: this.curveEnabled,
         conditions: this.conditions,
         timestamp: new Date().toISOString()
       };
@@ -1173,35 +1146,6 @@ const LLCVerifier = {
             this.saveThermalSettings();
           }
           
-          // 加载热模型变量
-          if (config.thermalVarsStruct) {
-            this.thermalVarsStruct = config.thermalVarsStruct;
-          }
-          if (config.thermalVarsListPri) {
-            this.thermalVarsListPri = config.thermalVarsListPri;
-          }
-          if (config.thermalVarsListSec) {
-            this.thermalVarsListSec = config.thermalVarsListSec;
-          }
-          this.renderThermalVarsPanel();
-          
-          // 加载 PLECS 路径
-          if (config.plecsToolboxPath) {
-            this.plecsToolboxPath = config.plecsToolboxPath;
-            this.savePlecsToolboxPath();
-            this.updatePlecsPathDisplay();
-          }
-          
-          // 加载裕量设置
-          if (config.marginSettings) {
-            this.marginSettings.voltageMargin = config.marginSettings.voltageMargin || 20;
-            this.marginSettings.currentMargin = config.marginSettings.currentMargin || 20;
-            
-            const voltageMarginInput = document.getElementById('voltage-margin');
-            const currentMarginInput = document.getElementById('current-margin');
-            if (voltageMarginInput) voltageMarginInput.value = this.marginSettings.voltageMargin;
-            if (currentMarginInput) currentMarginInput.value = this.marginSettings.currentMargin;
-          }
           
           // 注意：loadConfig 不导入曲线数据，只导入工况配置
           // 曲线数据通过 loadCurvesConfig 单独导入
